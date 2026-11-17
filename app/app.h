@@ -12,7 +12,13 @@
 
 /* the store: the project (settings and four patterns, about 3.7 KiB), and the platform's panel calibration */
 enum { OBJ_PROJECT, OBJ_PANEL, OBJ_NOBJ };
+#if defined BOARD_SMK37 && BOARD_SMK37
+/* the SMK-37 (smk37-port.yaml): both pairs at the start of its data area (0xA1000..0xBAFFF); 0xFC000 is its stock
+ * resources' area there, never written (felucca-bsp chip/fm1_flash_policy.h) */
+#define APP_STORE_MAP {0xA1000u, 0xA3000u}
+#else
 #define APP_STORE_MAP {0xFC000u, 0xDC000u}
+#endif
 
 /* the contract: the platform calls these */
 void app_init(void);

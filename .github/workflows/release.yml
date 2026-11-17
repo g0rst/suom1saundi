@@ -100,6 +100,19 @@ jobs:
         fi
         # the firmware described for hubs (base/docs/FIRMWARE-JSON.md), from the build with Bluetooth
         cp app/build/firmware.json build/release-assets/
+        # the M-VAVE SMK-37 (smk37-port.yaml), not in releases yet: its panel layer is not done, so these packages
+        # are build checks only and must not be installed
+        if [[ "$GITHUB_REF" != refs/tags/* ]]; then
+          for model in pro elite mke; do
+            ./build.sh --board smk37 --model "$model"
+            dir=smk37; [ "$model" = pro ] || dir="smk37-$model"
+            f="app/build/$dir/$pkg-$dir.fwsc"
+            cp "$f" "build/release-assets/$pkg-$dir-BUILDCHECK-NOT-FOR-INSTALL.fwsc"
+            echo "::notice title=SMK-37 $model::$(stat -c %s "app/build/$dir/$pkg.bin") B app, $(stat -c %s "$f") B package"
+          done
+          ./build.sh --board smk37 --host
+        fi
+        echo "::notice title=FM-1::$(stat -c %s "app/build/$pkg.bin") B app, $(stat -c %s "app/build/$pkg.fwsc") B package"
         # <- yours: any other assets, into build/release-assets/
       test: |
         set -euo pipefail

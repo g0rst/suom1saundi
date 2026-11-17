@@ -17,3 +17,12 @@ if [ -x "$SIM" ]; then
 else
     echo "host simulator not built (./build.sh --host): skipped"
 fi
+# The SMK-37's flash map, against the patched copy of fm1-base (./build.sh --board smk37 ... made it)
+SMKBASE="$ROOT/app/build/.base-smk37"
+if [ -d "$SMKBASE/bsp/chip" ]; then
+    ${CC:-cc} -std=c11 -Wall -Wno-type-limits -I"$SMKBASE/bsp/chip" -I"$SMKBASE/include" \
+        "$ROOT/tests/smk37_flash_test.c" -o "$OUT/smk37_flash_test"
+    "$OUT/smk37_flash_test"
+else
+    echo "SMK-37 build not prepared (./build.sh --board smk37 --host): its flash map test skipped"
+fi
