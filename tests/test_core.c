@@ -647,6 +647,97 @@ int main(int argc, char **argv)
         CHECK(ss_project()->pat[0].tr[0].p[1] == v - 2, "a knob that steps: %d, was %d", ss_project()->pat[0].tr[0].p[1], v);
     }
 
+    /* the SMK-37 as itself: the keybed plays (PIANO), REC tapped switches to STEPS, held while playing it records; the
+     * pads are the steps (hit hard: an accent), held, K1 edits the note; the banks, the faders, the wheels */
+    {
+        ss_track_t *tr;
+        double pk;
+        int p;
+        ss_init(45);
+        ss_smk_native(1);
+        frame(0);
+        CHECK(ss_state(SS_Q_SMK_PIANO) == 1, "SMK-37: not PIANO at the start");
+        tap_button(SS_B_REC);
+        CHECK(ss_state(SS_Q_SMK_PIANO) == 0, "SMK-37: REC tapped, still PIANO");
+        tap_button(SS_B_REC);
+        CHECK(ss_state(SS_Q_SMK_PIANO) == 1, "SMK-37: REC tapped again, not PIANO");
+        tap_button(SS_B_OCTUP);
+        CHECK(ss_state(SS_Q_OCTAVE) == 1 && ss_state(SS_Q_TRACK) == 0, "SMK-37: OCTAVE+ in PIANO: octave %d track %d",
+              ss_state(SS_Q_OCTAVE), ss_state(SS_Q_TRACK));
+        tap_button(SS_B_OCTDN);
+        /* a key in PIANO sounds, and the FM-1's keys (F3..G5) do nothing to the steps */
+        ss_smk_key(12, 120); frame(0);
+        run(0.3, 0, &pk, 0);
+        CHECK(pk > 0.05, "SMK-37: a key in PIANO played nothing: %f", pk);
+        tr = &ss_project()->pat[0].tr[0];
+        for (p = 0; p < SS_STEPS; p++)
+            tr->step[p].flags = 0;
+        tap_key(0);
+        CHECK(ss_state(SS_Q_STEPS_ON) == 0, "SMK-37: in PIANO a FM-1 key set a step");
+        /* the pads: pad 3 tapped softly, pad 5 hard (an accent); pad 3 again clears it */
+        ss_smk_pad(3, 60); frame(0); ss_smk_pad(3, 0); frame(0);
+        ss_smk_pad(5, 127); frame(0); ss_smk_pad(5, 0); frame(0);
+        CHECK(ss_state(SS_Q_STEPS_ON) == 2 && !(tr->step[3].flags & SS_ST_ACC) && (tr->step[5].flags & SS_ST_ACC),
+              "SMK-37 pads: %d steps, flags %02x %02x", ss_state(SS_Q_STEPS_ON), tr->step[3].flags, tr->step[5].flags);
+        ss_smk_pad(3, 60); frame(0); ss_smk_pad(3, 0); frame(0);
+        CHECK(ss_state(SS_Q_STEPS_ON) == 1, "SMK-37: a pad tapped again did not clear its step");
+        /* a pad held, K1 two detents: its note +2, and its release leaves it set */
+        ss_smk_pad(7, 80); frame(0);
+        ss_smk_knob(0, 2); frame(0);
+        ss_smk_pad(7, 0); frame(0);
+        CHECK((tr->step[7].flags & SS_ST_ON) && tr->step[7].note == 2, "SMK-37: a held pad + K1: flags %02x note %d",
+              tr->step[7].flags, tr->step[7].note);
+        CHECK(ss_smk_pad_rgb(7) != 0 && ss_smk_pad_rgb(6) != 0 && ss_smk_pad_rgb(7) != ss_smk_pad_rgb(6),
+              "SMK-37: the pads' colours");
+        /* the knob banks: SOUND K2 moves p[1]; LFO+CHAN K5 the TONE; FM-1: ss_smk_knob does nothing */
+        v = tr->p[1];
+        ss_smk_knob(1, 1); frame(0);
+        CHECK(tr->p[1] == v + 2, "SMK-37 SOUND K2: %d, was %d", tr->p[1], v);
+        ss_smk_button(SS_SMK_KNOB_BANK);
+        v = tr->tone;
+        ss_smk_knob(4, -1); frame(0);
+        CHECK(ss_state(SS_Q_SMK_KBANK) == SS_SMK_KB_LFO && tr->tone == v - 2, "SMK-37 LFO+CHAN K5: tone %d, was %d",
+              tr->tone, v);
+        ss_smk_button(SS_SMK_KNOB_BANK);
+        CHECK(ss_smk_knob_bank() == SS_SMK_KB_FM1 && (ss_smk_leds() & 1u << SS_SMK_KNOB_BANK), "SMK-37: the FM-1 bank");
+        v = tr->p[0];
+        ss_smk_knob(0, 3);
+        CHECK(tr->p[0] == v, "SMK-37: in the FM-1 bank K1 moved a sound knob");
+        ss_smk_button(SS_SMK_KNOB_BANK);
+        /* the faders: A F2 = BASSO's level; B F3 = the delay's return */
+        ss_smk_fader(1, 33);
+        CHECK(ss_project()->pat[0].tr[SS_BASSO].level == 33, "SMK-37 fader A2: %d", ss_project()->pat[0].tr[SS_BASSO].level);
+        ss_smk_button(SS_SMK_FADER_BANK);
+        ss_smk_fader(2, 90);
+        CHECK(ss_project()->dly_ret == 90 && ss_state(SS_Q_SMK_FBANK) == 1, "SMK-37 fader B3: %d", ss_project()->dly_ret);
+        ss_smk_mod(77);
+        CHECK(ss_project()->seko == 77, "SMK-37 mod wheel: SEKO %d", ss_project()->seko);
+        /* recording: playing, REC held, a key at velocity 120 writes an accented step with its note */
+        for (p = 0; p < SS_STEPS; p++)
+            tr->step[p].flags = 0;
+        tap_button(SS_B_PLAY);
+        run(0.2, 0, 0, 0);
+        held_b |= 1u << SS_B_REC; frame(0);
+        CHECK(ss_state(SS_Q_SMK_REC) == 1, "SMK-37: REC held while playing does not record");
+        ss_smk_key(14, 120); frame(0);
+        held_b &= ~(1u << SS_B_REC); frame(0);
+        CHECK(ss_state(SS_Q_STEPS_ON) == 1 && ss_state(SS_Q_SMK_PIANO) == 1, "SMK-37 recording: %d steps, piano %d",
+              ss_state(SS_Q_STEPS_ON), ss_state(SS_Q_SMK_PIANO));
+        for (p = 0; p < SS_STEPS; p++)
+            if (tr->step[p].flags & SS_ST_ON)
+                CHECK(tr->step[p].note == 2 && (tr->step[p].flags & SS_ST_ACC), "SMK-37 recorded: note %d flags %02x",
+                      tr->step[p].note, tr->step[p].flags);
+        /* STEPS: C3..D#3 the patterns, E3 CHAIN */
+        tap_button(SS_B_PLAY);
+        tap_button(SS_B_REC);
+        ss_smk_key(2, 100); frame(0);
+        CHECK(ss_state(SS_Q_PATTERN) == 2, "SMK-37 STEPS: D3 did not pick pattern C (%d)", ss_state(SS_Q_PATTERN));
+        ss_smk_key(4, 100); frame(0);
+        CHECK(ss_project()->chain == 1, "SMK-37 STEPS: E3 CHAIN %d", ss_project()->chain);
+        snprintf(path, sizeof path, "%s/screen-smk37.ppm", out);
+        write_screen(path);
+    }
+
     printf(fails ? "%d FAILED\n" : "all tests passed\n", fails);
     return fails != 0;
 }

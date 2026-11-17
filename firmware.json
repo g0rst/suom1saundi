@@ -13,7 +13,7 @@
   "screenshot": "docs/screen.png",
   "hardware": {
     "models": ["FM-1"],
-    "flash": ["856014", "B36014"],
+    "flash": ["EB6014", "856014", "B36014"],
     "features": ["usb-audio-in", "usb-audio-out", "screen-reader"]
   },
   "credits": "Built on fm1-base and felucca-bsp (MPL-2.0); sequencer and UI from ro:MINImal; 8-bit ideas from memetek-fm1; acid ideas from neur0psy."

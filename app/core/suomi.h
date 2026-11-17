@@ -139,6 +139,24 @@ void ss_draw(uint16_t *px, int strip);   /* strip's 240 x 48 pixels, RGB565 */
 void ss_lights(uint32_t *buttons, uint32_t *keys, uint32_t *dim_buttons, uint32_t *dim_keys);
 void ss_message(const char *a, const char *b);
 
+/* ---- the SMK-37 as its own instrument (suom1saundi built for the M-VAVE SMK-37: app.c) ---- */
+/* its panel drives the core: the keybed plays (PIANO) or is the FM-1's (STEPS: REC taps between them; REC held while
+ * playing records the keybed), the pads are the chosen track's 16 steps, K1..K8 in three banks, the faders a mixer in
+ * two banks, the wheels bend the track and set SEKO. All from the main loop */
+enum { SS_SMK_KNOB_BANK, SS_SMK_FADER_BANK, SS_SMK_LEFT, SS_SMK_RIGHT };
+enum { SS_SMK_KB_SOUND, SS_SMK_KB_LFO, SS_SMK_KB_FM1, SS_SMK_NKB };   /* the knob banks */
+void ss_smk_native(int on);
+void ss_smk_key(int key, int velocity);     /* keybed key 0..36 (C3..C6), velocity 1..127, 0: released */
+void ss_smk_pad(int pad, int velocity);     /* pad 0..15 (0..7 the top row), velocity, 0: released */
+void ss_smk_knob(int knob, int detents);    /* K1..K8 (0..7), in the banks SOUND and LFO (the FM-1 bank: ss_input) */
+void ss_smk_fader(int fader, int value);    /* F1..F4 (0..3), a new position 0..127 */
+void ss_smk_bend(int value);                /* the pitch wheel, -8192..8191 */
+void ss_smk_mod(int value);                 /* the mod wheel, 0..127 */
+void ss_smk_button(int which);              /* pressed: SS_SMK_KNOB_BANK, SS_SMK_FADER_BANK, SS_SMK_LEFT, SS_SMK_RIGHT */
+int ss_smk_knob_bank(void);                 /* SS_SMK_KB_*: in SS_SMK_KB_FM1 the knobs are the FM-1's (ss_input's enc) */
+uint32_t ss_smk_pad_rgb(int pad);           /* the pad's colour, 0xRRGGBB */
+uint32_t ss_smk_leds(void);                 /* bit SS_SMK_*: KNOB BANK and FADER BANK lit off their first bank */
+
 /* ---- the project, for the platform's storage ---- */
 uint32_t ss_project_get(void *dst, uint32_t max);       /* bytes written (0: too small) */
 int ss_project_set(const void *src, uint32_t len);      /* 0 = loaded; else nothing changed */
@@ -148,6 +166,7 @@ int ss_save_wanted(void);             /* 1 once after SAVE: the platform writes 
 int ss_state(int what);
 enum { SS_Q_PLAYING, SS_Q_TRACK, SS_Q_PAGE, SS_Q_BPM, SS_Q_GSTEP, SS_Q_PATTERN, SS_Q_KEYS_MODE,
        SS_Q_LEN, SS_Q_STEPS_ON, SS_Q_MUTE, SS_Q_UNSAVED, SS_Q_POS, SS_Q_SOLO, SS_Q_CURSOR, SS_Q_MAXI, SS_Q_LEARN,
+       SS_Q_SMK_PIANO, SS_Q_SMK_REC, SS_Q_SMK_KBANK, SS_Q_SMK_FBANK, SS_Q_OCTAVE,
        SS_Q_HITS = 100 };            /* + track: hits sounded since PLAY */
 ss_project_t *ss_project(void);
 

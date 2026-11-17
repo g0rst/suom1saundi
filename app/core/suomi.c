@@ -162,6 +162,12 @@ static struct {
     ss_smk_t learn_bak;                 /* the map before: HOME cancels */
     uint8_t smk_shown;                  /* the 8-knob view: which half moved last */
     uint32_t meter_t;
+    /* the SMK-37 as its own instrument (ss_smk_native) */
+    uint8_t smk_native, smk_piano, smk_kbank, smk_fbank;
+    uint8_t smk_rec, smk_rec_used;      /* REC held while playing: the keybed records; a key played while it was held */
+    uint32_t smk_rec_t;                 /* REC went down (0: not held) */
+    uint16_t smk_pads;                  /* the pads held */
+    uint8_t smk_pad_vel[SS_STEPS];      /* each held pad's velocity */
 } R;
 
 static int16_t dly_buf[DLY_LEN] POOL;
@@ -1926,13 +1932,38 @@ static int held_step(void)              /* the lowest held white key in step mod
 {
     static const uint8_t WK[16] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};
     int i;
-    if (R.keys_mode || R.page == SS_PG_TIMING)
+    if (R.smk_native && R.smk_pads && R.page != SS_PG_TIMING)   /* the SMK-37: the lowest held pad */
+        for (i = 0; i < SS_STEPS; i++)
+            if (R.smk_pads >> i & 1u)
+                return i;
+    if (R.keys_mode || R.page == SS_PG_TIMING || (R.smk_native && R.smk_piano))
         return -1;
     for (i = 0; i < 16; i++)
         if (R.keys >> WK[i] & 1u)
             return i;
     return -1;
 }
+
+/* the SMK-37 as itself: its knob banks' names and the LFO+CHAN bank's fields (ss_smk_knob, draw_smk_bank) */
+static const char *const SMK_KB_NAME[SS_SMK_NKB] = {"SOUND", "LFO+CHAN", "FM-1"};
+static const char *const SMK_LFO_NAME[8] = {"LFO RATE", "LFO SHAPE", "LFO DEST", "LFO DEPTH", "TONE", "BITS", "RATE",
+                                             "DUCK"};
+static const uint8_t SMK_LFO_HI[8] = {9, 4, 7, 127, 127, 127, 127, 127};
+
+static uint8_t *smk_lfo_field(ss_track_t *tr, int k)
+{
+    switch (k) {
+    case 0: return &tr->lfo_rate;
+    case 1: return &tr->lfo_shape;
+    case 2: return &tr->lfo_dest;
+    case 3: return &tr->lfo_depth;
+    case 4: return &tr->tone;
+    case 5: return &tr->bits;
+    case 6: return &tr->rate;
+    default: return &tr->sc;
+    }
+}
+
 
 /* MAXI's learning, step by step: a key, the first pad, the knobs, the faders */
 enum { LEARN_KEY = 1, LEARN_PAD, LEARN_KNOB, LEARN_FADER = LEARN_KNOB + SS_SMK_KNOBS, LEARN_END = LEARN_FADER + SS_SMK_FADERS };
@@ -2018,6 +2049,34 @@ static void draw_eight(void)
     text(236 - text_w("SMK K1-K8", 1), PARAM_Y, "SMK K1-K8", C_DIM, 1);
 }
 
+/* the SMK-37's knob banks SOUND and LFO+CHAN: all eight values at once, in K1..K8's places */
+static void draw_smk_bank(void)
+{
+    const ss_track_t *tr = &PAT->tr[R.track];
+    char t[24];
+    int i;
+    t[0] = 0;
+    cat(t, R.smk_kbank == SS_SMK_KB_SOUND ? "SOUND " : "LFO+CHAN ");
+    cat(t, TRACK_NAME[R.track]);
+    text(4, PARAM_Y, t, C_ACC, 1);
+    text(236 - text_w("K1-K8", 1), PARAM_Y, "K1-K8", C_DIM, 1);
+    for (i = 0; i < 8; i++) {
+        int x = 4 + (i & 3) * 60, y = PARAM_Y + 12 + (i >> 2) * 24;
+        if (R.smk_kbank == SS_SMK_KB_SOUND) {
+            if (SOUND_NAME[R.track][i])
+                draw_value(x, y, SOUND_NAME[R.track][i], tr->p[i], R.smk_shown == i + 1, 1);
+        } else {
+            int v = *smk_lfo_field((ss_track_t *)tr, i), hi = SMK_LFO_HI[i];
+            text(x, y, SMK_LFO_NAME[i], C_MID, 1);
+            t[0] = 0;
+            cat_int(t, v);
+            text(x, y + 9, t, C_FG, 1);
+            rect(x, y + 18, 52, 2, C_LINE);
+            rect(x, y + 18, v * 52 / hi, 2, C_FG);
+        }
+    }
+}
+
 static void draw_learn(void)
 {
     char t[24];
@@ -2080,6 +2139,11 @@ void ss_draw(uint16_t *px, int strip)
             rect(2, y + 8, text_w(TRACK_NAME[lane], 1) + 2, 1, cur ? C_BG : C_DIM);
         if (tr->dep_src && tr->dep_src - 1 != lane)
             rect(37, y + 7, 3, 3, C_ACC);   /* linked to another track */
+        if (R.smk_native) {             /* the SMK-37: each track's level as it sounds, beside its name */
+            int mt = meter_px(R.meter[lane], 16);
+            rect(43, y, 2, 16, C_LINE);
+            rect(43, y + 16 - mt, 2, mt, quiet ? C_DIM : TRACK_COL[lane]);
+        }
         for (i = 0; i < SS_STEPS; i++) {
             int x = CELL_X + i * CELL_W, on, play;
             const ss_step_t *sp = &tr->step[i];
@@ -2128,13 +2192,15 @@ void ss_draw(uint16_t *px, int strip)
         cat(t, " ");
         cat(t, TRACK_NAME[R.track]);
     }
-    if (!R.learn)
+    if (!R.learn && !(R.smk_native && hs < 0 && R.smk_kbank != SS_SMK_KB_FM1))
         text(4, PARAM_Y, t, C_ACC, 1);
     if (R.learn) {
         draw_learn();
+    } else if (R.smk_native && hs < 0 && R.smk_kbank != SS_SMK_KB_FM1) {
+        draw_smk_bank();
     } else if (eight_view() && hs < 0) {
         draw_eight();
-    } else if (hs >= 0 && R.page == SS_PG_SOUND) {   /* a step held on the sound page: its own values (locks) */
+    } else if (hs >= 0 && R.page == SS_PG_SOUND && !R.smk_native) {   /* a step held on the sound page: its own values (locks) */
         const ss_step_t *st = &PAT->tr[R.track].step[hs];
         t[0] = 0;
         cat(t, "STEP ");
@@ -2206,6 +2272,27 @@ void ss_draw(uint16_t *px, int strip)
     if (R.msg_until) {
         i = text(4, FOOT_Y + 2, R.msg[0], C_ACC, 2);
         text(i + 6, FOOT_Y + 2, R.msg[1], C_FG, 2);
+    } else if (R.smk_native) {          /* the SMK-37: the keybed's mode, the banks, the octave always in view */
+        const char *m = R.smk_rec ? "PIANO REC" : R.smk_piano ? "PIANO" : "STEPS";
+        t[0] = 0;
+        cat(t, TRACK_NAME[R.track]);
+        cat(t, " LEN ");
+        cat_int(t, PAT->tr[R.track].len);
+        text(4, FOOT_Y, t, C_FG, 1);
+        if (R.unsaved)
+            text(120, FOOT_Y, "UNSAVED", C_DIM, 1);
+        text(236 - text_w(m, 1), FOOT_Y, m, R.smk_rec ? RGB(255, 70, 50) : R.smk_piano ? C_ACC : C_MID, 1);
+        t[0] = 0;
+        cat(t, "KNOBS ");
+        cat(t, SMK_KB_NAME[R.smk_kbank]);
+        cat(t, R.smk_fbank ? "  FADERS B" : "  FADERS A");
+        if (R.smk_piano) {
+            cat(t, "  OCT ");
+            if (R.octave > 0)
+                cat(t, "+");
+            cat_int(t, R.octave);
+        }
+        text(4, FOOT_Y + 13, t, C_DIM, 1);
     } else {
         t[0] = 0;
         cat(t, TRACK_NAME[R.track]);
@@ -2281,7 +2368,7 @@ static void record_hit(int t, int note, int vel)   /* REC while playing: a note 
 {
     ss_track_t *tr = &PAT->tr[t];
     uint32_t len = tr->len ? tr->len : 1u;
-    if (!R.keys_mode || !R.playing)
+    if (!(R.keys_mode || R.smk_rec) || !R.playing)
         return;
     set_step(tr, R.pos[t] % len, vel > 100, 0, note);
     changed();
@@ -2448,6 +2535,255 @@ static void smk_input(int hs)
     }
 }
 
+/* ------------------------------------------------- the SMK-37 as itself --- */
+/* suom1saundi built for the M-VAVE SMK-37 (smk37-port.yaml): app.c hands the core its own controls. The keybed: PIANO
+ * (the default) plays the chosen track, C4 its base note, OCTAVE- / + shift it; REC held while the groove runs writes
+ * what it plays into the steps. REC tapped: STEPS, the 27 keys F3..G5 as the FM-1's (white the steps, black the tracks
+ * and helpers), C3..E3 the patterns A..D and CHAIN. The pads: the chosen track's 16 steps; a tap sets or clears one (hit
+ * hard: an accent), held, K1..K4 edit it as a held white key does on the FM-1. */
+void ss_smk_native(int on)
+{
+    R.smk_native = (uint8_t)(on != 0);
+    R.smk_piano = R.smk_native;
+    R.smk_kbank = SS_SMK_KB_SOUND;
+    R.smk_fbank = 0;
+    R.keys_mode = 0;
+    R.dirty |= STRIP_ALL;
+}
+
+static void smk_show(const char *name, int v)
+{
+    char t[8];
+    t[0] = 0;
+    cat_int(t, v);
+    ss_message(name, t);
+}
+
+
+void ss_smk_key(int key, int velocity)
+{
+    ss_track_t *tr = &PAT->tr[R.track];
+    if (!R.smk_native || key < 0 || key > 36)
+        return;
+    if (R.smk_piano) {
+        int note = key - 12 + 12 * R.octave;    /* key 12 is C4: the track's base note */
+        if (!velocity)
+            return;
+        note = clampi(note, -48, 48);
+        tq_push(R.track, note, velocity);
+        if (R.smk_rec_t)
+            R.smk_rec_used = 1;         /* (REC held: no tap) */
+        if (R.smk_rec && R.playing) {   /* written into the step it fell on */
+            uint32_t len = tr->len ? tr->len : 1u;
+            set_step(tr, R.pos[R.track] % len, velocity > 100, 0, note);
+            changed();
+        }
+        return;
+    }
+    if (!velocity || key >= SS_NKEYS + 5)   /* (STEPS: the keys G#5..C6 have no role yet) */
+        return;
+    if (key < 4) {                      /* C3..D#3: the patterns A..D, at the next bar while playing */
+        R.eu_armed = 1;
+        if (R.playing)
+            R.pending_pat = (uint8_t)(key == R.prj.cur_pat ? 0xFF : key);
+        else
+            R.prj.cur_pat = (uint8_t)key;
+        R.dirty |= STRIP_ALL;
+    } else if (key == 4) {              /* E3: CHAIN, off, A-B, A-C, A-D */
+        static const char *const CH[SS_PATTERNS] = {"OFF", "A-B", "A-C", "A-D"};
+        R.prj.chain = (uint8_t)((R.prj.chain + 1u) % SS_PATTERNS);
+        ss_message("CHAIN", CH[R.prj.chain]);
+        changed();
+    }
+}
+
+void ss_smk_pad(int pad, int velocity)
+{
+    ss_track_t *tr = &PAT->tr[R.track];
+    if (!R.smk_native || pad < 0 || pad >= SS_STEPS)
+        return;
+    if (velocity) {
+        if (!R.smk_pads)
+            R.step_edited = 0;
+        R.smk_pads |= (uint16_t)(1u << pad);
+        R.smk_pad_vel[pad] = (uint8_t)velocity;
+        R.dirty |= STRIP_GRID | STRIP_PAGE;
+        return;
+    }
+    if (!(R.smk_pads >> pad & 1u))
+        return;
+    R.smk_pads &= (uint16_t)~(1u << pad);
+    R.dirty |= STRIP_GRID | STRIP_PAGE;
+    if (R.page == SS_PG_TIMING) {       /* the timing page: a pad picks the step */
+        if (pad < tr->len)
+            R.cursor = (uint8_t)pad;
+        return;
+    }
+    if (R.step_edited) {                /* edited while held: left as it is */
+        if (!R.smk_pads)
+            R.step_edited = 0;
+        return;
+    }
+    if (pad >= tr->len)
+        return;
+    if (tr->step[pad].flags & SS_ST_ON) {
+        tr->step[pad].flags &= (uint8_t)~SS_ST_ON;
+    } else {
+        tr->step[pad].flags |= SS_ST_ON;
+        tr->step[pad].flags = (uint8_t)((tr->step[pad].flags & ~SS_ST_ACC) |
+                                        (R.smk_pad_vel[pad] > 100 ? SS_ST_ACC : 0u));
+    }
+    changed();
+}
+
+void ss_smk_knob(int knob, int detents)
+{
+    ss_track_t *tr = &PAT->tr[R.track];
+    int hs = held_step(), v, d = detents;
+    if (!R.smk_native || knob < 0 || knob > 7 || !d || R.smk_kbank == SS_SMK_KB_FM1)
+        return;
+    if (hs >= 0 && R.smk_kbank == SS_SMK_KB_SOUND) {   /* a pad held: K1..K4 the step, K5..K8 its own sound */
+        ss_step_t *st = &tr->step[hs];
+        if (knob < 4) {
+            static const char *const PROB[4] = {"100%", "75%", "50%", "25%"};
+            static const char *const AS[4] = {"OFF", "ACC", "SLD", "A+S"};
+            if (knob == 0) {
+                st->note = (int8_t)clampi(st->note + d, -24, 36);
+                smk_show("NOTE", st->note);
+            } else if (knob == 1) {     /* clockwise: more likely */
+                int p = clampi((int)SS_ST_PROB(st->flags) - d, 0, 3);
+                st->flags = (uint8_t)((st->flags & ~0x30u) | (uint32_t)p << 4);
+                ss_message("CHANCE", PROB[p]);
+            } else if (knob == 2) {
+                int a = ((st->flags & SS_ST_ACC) ? 1 : 0) | ((st->flags & SS_ST_SLIDE) ? 2 : 0);
+                a = clampi(a + d, 0, 3);
+                st->flags = (uint8_t)((st->flags & ~(SS_ST_ACC | SS_ST_SLIDE)) | (a & 1 ? SS_ST_ACC : 0u) |
+                                      (a & 2 ? SS_ST_SLIDE : 0u));
+                ss_message("ACC/SLIDE", AS[a]);
+            } else {
+                int n = clampi((int)(st->flags & 3u) + d, 0, 3);
+                st->flags = (uint8_t)((st->flags & ~3u) | (uint32_t)n);
+                smk_show("RATCHET", (int)SS_ST_RATCH(st->flags));
+            }
+        } else {
+            int k = knob - 4;
+            if (!SOUND_NAME[R.track][k])
+                return;
+            v = st->lock[k] ? st->lock[k] - 1 : tr->p[k];
+            v = clampi(v + d * (d > 1 || d < -1 ? 4 : 2), 0, 127);
+            st->lock[k] = (uint8_t)(v + 1);
+            smk_show(SOUND_NAME[R.track][k], v);
+        }
+        st->flags |= SS_ST_ON;          /* editing a step sets it */
+        R.step_edited = 1;
+        changed();
+        return;
+    }
+    if (R.smk_kbank == SS_SMK_KB_SOUND) {   /* the track's eight sound knobs */
+        if (!SOUND_NAME[R.track][knob])
+            return;
+        v = tr->p[knob] = (uint8_t)clampi((int)tr->p[knob] + d * (d > 1 || d < -1 ? 4 : 2), 0, 127);
+        R.smk_shown = (uint8_t)(knob + 1);
+        smk_show(SOUND_NAME[R.track][knob], v);
+    } else {                            /* the LFO, then the channel strip */
+        uint8_t *f = smk_lfo_field(tr, knob);
+        int hi = SMK_LFO_HI[knob];
+        v = *f = (uint8_t)clampi((int)*f + (hi > 20 ? d * (d > 1 || d < -1 ? 4 : 2) : d), 0, hi);
+        smk_show(SMK_LFO_NAME[knob], v);
+    }
+    changed();
+}
+
+void ss_smk_fader(int fader, int value)
+{
+    uint8_t *f;
+    const char *name;
+    if (!R.smk_native || fader < 0 || fader > 3)
+        return;
+    value = clampi(value, 0, 127);
+    if (!R.smk_fbank) {                 /* A: the levels of POTKU, BASSO, HATTU, HAPPO */
+        f = &PAT->tr[fader].level;
+        name = TRACK_NAME[fader];
+    } else if (fader < 2) {             /* B: PIIP, OUTO, the delay's and the reverb's returns */
+        f = &PAT->tr[4 + fader].level;
+        name = TRACK_NAME[4 + fader];
+    } else {
+        f = fader == 2 ? &R.prj.dly_ret : &R.prj.rev_ret;
+        name = fader == 2 ? "D.RET" : "R.RET";
+    }
+    *f = (uint8_t)value;
+    smk_show(name, value);
+    changed();
+}
+
+void ss_smk_bend(int value)             /* 2 semitones, on the chosen track */
+{
+    int t;
+    if (!R.smk_native)
+        return;
+    for (t = 0; t < SS_TRACKS; t++)
+        R.bendf[t] = t == R.track ? fexp2((float)clampi(value, -8192, 8191) * (2.0f / 12.0f / 8192.0f)) : 1.0f;
+}
+
+void ss_smk_mod(int value)
+{
+    if (!R.smk_native)
+        return;
+    R.prj.seko = (uint8_t)clampi(value, 0, 127);
+    smk_show("SEKO", R.prj.seko);
+    changed();
+}
+
+void ss_smk_button(int which)
+{
+    static const char *const FB[2] = {"POT BAS HAT HAP", "PII OUT DLY REV"};
+    if (!R.smk_native)
+        return;
+    if (which == SS_SMK_KNOB_BANK) {
+        R.smk_kbank = (uint8_t)((R.smk_kbank + 1u) % SS_SMK_NKB);
+        ss_message("KNOBS", SMK_KB_NAME[R.smk_kbank]);
+    } else if (which == SS_SMK_FADER_BANK) {
+        R.smk_fbank ^= 1u;
+        ss_message(R.smk_fbank ? "FADERS B" : "FADERS A", FB[R.smk_fbank]);
+    } else if (which == SS_SMK_LEFT || which == SS_SMK_RIGHT) {   /* as the FM-1's black keys < and >: the steps turn */
+        keep_undo();
+        rotate_track(R.track, which == SS_SMK_RIGHT ? 1 : -1);
+        changed();
+    }
+    R.dirty |= STRIP_ALL;
+}
+
+int ss_smk_knob_bank(void) { return R.smk_kbank; }
+
+uint32_t ss_smk_leds(void)
+{
+    return (R.smk_kbank != SS_SMK_KB_SOUND ? 1u << SS_SMK_KNOB_BANK : 0u) |
+           (R.smk_fbank ? 1u << SS_SMK_FADER_BANK : 0u);
+}
+
+/* the pads: the chosen track's steps in its colour, a likely one brighter, an accent brightest; the playhead white; the
+ * loop's empty steps a glimmer, past its end dark (WS2812 LEDs: full is glaring, so a half at most) */
+uint32_t ss_smk_pad_rgb(int pad)
+{
+    const ss_track_t *tr = &PAT->tr[R.track];
+    uint16_t c = TRACK_COL[R.track];
+    uint32_t r = (uint32_t)(c >> 11) * 255u / 31u, g = (uint32_t)(c >> 5 & 63u) * 255u / 63u,
+             b = (uint32_t)(c & 31u) * 255u / 31u, div;
+    uint8_t f;
+    if (!R.smk_native || pad < 0 || pad >= SS_STEPS || pad >= tr->len)
+        return 0;
+    f = tr->step[pad].flags;
+    if ((R.playing && R.pos[R.track] == pad) || (R.smk_pads >> pad & 1u))
+        return 0x606060u;
+    if (!(f & SS_ST_ON))
+        div = 40u;
+    else if (f & SS_ST_ACC)
+        div = 2u;
+    else
+        div = 4u + 2u * SS_ST_PROB(f);
+    return (r / div) << 16 | (g / div) << 8 | b / div;
+}
+
 void ss_input(uint32_t buttons, uint32_t keys, const int32_t enc[SS_NE], uint32_t now_ms)
 {
     static const uint8_t WK[16] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};
@@ -2456,6 +2792,10 @@ void ss_input(uint32_t buttons, uint32_t keys, const int32_t enc[SS_NE], uint32_
     ss_track_t *tr;
     int i, hs, e_sel = (int)enc[SS_E_SELECT], e_pre = (int)enc[SS_E_PRESET];
     R.now = now_ms;
+    if (R.smk_native && R.smk_piano) {  /* the SMK-37 playing: its keys F3..G5 are not the FM-1's now */
+        keys = 0;
+        kdown = kup = 0;
+    }
     hs = held_step();                   /* from the keys as they were: a step held since before this call */
     R.btn = buttons;
     R.keys = keys;
@@ -2468,7 +2808,7 @@ void ss_input(uint32_t buttons, uint32_t keys, const int32_t enc[SS_NE], uint32_
         R.seen_gstep = R.gstep_ui;
         R.dirty |= STRIP_GRID;
     }
-    if (is_mixer() && now_ms - R.meter_t >= 80u) {   /* the meters move: about 12 times a second */
+    if ((is_mixer() || (R.smk_native && R.playing)) && now_ms - R.meter_t >= 80u) {   /* the meters move: about 12 times a second */
         R.meter_t = now_ms;
         R.dirty |= STRIP_GRID;
     }
@@ -2545,7 +2885,27 @@ void ss_input(uint32_t buttons, uint32_t keys, const int32_t enc[SS_NE], uint32_
         R.eu_armed = 1;
         R.dirty |= STRIP_ALL;
     }
-    if (pressed & 1u << SS_B_REC) {
+    if (R.smk_native) {                 /* the SMK-37: REC tapped switches the keybed; held while playing, it records */
+        if (pressed & 1u << SS_B_REC) {
+            R.smk_rec_t = now_ms ? now_ms : 1u;
+            R.smk_rec_used = 0;
+        }
+        if (R.smk_rec_t && (buttons & 1u << SS_B_REC)) {
+            if (R.smk_piano && R.playing && !R.smk_rec) {
+                R.smk_rec = 1;
+                R.dirty |= STRIP_ALL;
+            }
+        } else if (R.smk_rec_t) {       /* let go */
+            if (!R.smk_rec_used && now_ms - R.smk_rec_t < 450u && !(R.smk_rec && R.smk_rec_used)) {
+                R.smk_piano ^= 1u;
+                R.octave = 0;
+                ss_message("KEYS", R.smk_piano ? "PIANO" : "STEPS");
+            }
+            R.smk_rec_t = 0;
+            R.smk_rec = 0;
+            R.dirty |= STRIP_ALL;
+        }
+    } else if (pressed & 1u << SS_B_REC) {
         R.keys_mode ^= 1u;
         R.dirty |= STRIP_ALL;
         ss_message("KEYS", R.keys_mode ? "PLAY" : "STEPS");
@@ -2625,8 +2985,10 @@ void ss_input(uint32_t buttons, uint32_t keys, const int32_t enc[SS_NE], uint32_
 
     /* the track */
     i = e_sel;
-    if (R.keys_mode) {
+    if (R.keys_mode || (R.smk_native && R.smk_piano)) {
         int o = R.octave + !!(pressed & 1u << SS_B_OCTUP) - !!(pressed & 1u << SS_B_OCTDN);
+        if (o != R.octave)
+            R.dirty |= STRIP_PAGE;
         R.octave = (int8_t)clampi(o, -2, 2);
     } else {
         i += !!(pressed & 1u << SS_B_OCTUP) - !!(pressed & 1u << SS_B_OCTDN);
@@ -2716,7 +3078,7 @@ void ss_input(uint32_t buttons, uint32_t keys, const int32_t enc[SS_NE], uint32_
     }
 
     /* K1 .. K4: the held step, or the page */
-    if (hs >= 0 && R.page == SS_PG_SOUND) {   /* the step's own sound: a lock a knob */
+    if (hs >= 0 && R.page == SS_PG_SOUND && !R.smk_native) {   /* the step's own sound: a lock a knob */
         ss_step_t *st = &tr->step[hs];
         for (i = 0; i < 4; i++) {
             int d = (int)enc[SS_E_K1 + i], v = st->lock[i] ? st->lock[i] - 1 : tr->p[i];
@@ -2862,7 +3224,7 @@ void ss_lights(uint32_t *buttons, uint32_t *keys, uint32_t *dim_buttons, uint32_
     int i;
     if (R.playing)
         b |= 1u << SS_B_PLAY;
-    if (R.keys_mode)
+    if (R.keys_mode || (R.smk_native && (R.smk_piano || R.smk_rec)))
         b |= 1u << SS_B_REC;
     if (tr->mute || R.solo >= 0)
         b |= 1u << SS_B_LFO;
@@ -2919,6 +3281,11 @@ int ss_state(int what)
     case SS_Q_CURSOR: return R.cursor;
     case SS_Q_MAXI: return R.prj.smk.on && R.smk_seen;
     case SS_Q_LEARN: return R.learn;
+    case SS_Q_SMK_PIANO: return R.smk_piano;
+    case SS_Q_SMK_REC: return R.smk_rec;
+    case SS_Q_SMK_KBANK: return R.smk_kbank;
+    case SS_Q_SMK_FBANK: return R.smk_fbank;
+    case SS_Q_OCTAVE: return R.octave;
     case SS_Q_HITS + 0: case SS_Q_HITS + 1: case SS_Q_HITS + 2: case SS_Q_HITS + 3: case SS_Q_HITS + 4:
     case SS_Q_HITS + 5: return (int)R.hits[what - SS_Q_HITS];
     default: return -1;

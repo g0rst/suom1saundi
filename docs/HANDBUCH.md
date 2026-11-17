@@ -15,7 +15,7 @@ Es gibt zwei Arten, suom1saundi zu spielen: **MINI**, der FM-1 allein, und **MAX
 ## Stand und Warnung
 
 - Der Kern (`app/core/suomi.c`) läuft in den Host-Tests, im Simulator von fm1-base und im Browser-Emulator.
-- Ein `.fwsc`-Paket für das Gerät braucht JieLis Toolchain und das AC79-SDK und wurde **noch nicht gebaut**.
+- Das `.fwsc`-Paket baut GitHub aus dem Quellcode (`.github/workflows/release.yml`), auch für das SMK-37.
 - Auf einem echten FM-1 ist die Firmware **noch nicht getestet**, mit einem echten SMK-37 auch nicht. Custom-Firmware
   kann ein Gerät unbrauchbar machen. Vorher auf die offizielle V15 gehen, Daten sichern und wissen, wie man
   zurückkommt (Installer von fm1-base).
@@ -393,6 +393,45 @@ mit Anschlag; mit **REC** und laufendem Groove werden sie, wie die Tasten, in de
 Arpeggiator, Akkord-Modus, Skalen-Korrektur und Note Repeat hat das SMK-37 selbst. suom1saundi baut sie deshalb nicht
 nach: Was das SMK-37 daraus spielt, kommt als Noten an, klingt auf der gewählten Spur und wird mit REC aufgenommen.
 
+## Auf dem SMK-37 selbst
+
+suom1saundi läuft auch **direkt auf einem M-VAVE SMK-37** (Pro, Elite, MKE-P37): dieselbe Groovebox, ohne FM-1, mit
+dem Klang aus dem SMK-37. Das ist eine eigene Firmware (`./build.sh --board smk37`, siehe „Firmware bauen“) und
+**noch an keinem Gerät getestet**. Vor dem Aufspielen mit M-Flasher eine volle Sicherung machen (BACKUP FULL FLASH):
+Sie enthält die Werks-Kalibrierung der Tasten. Die Firmware liest diese Kalibrierung nur und schreibt sie nie.
+
+Die Knöpfe tragen die FM-1-Namen: **PATCH** = HOME, **PARA** = EDIT, **BT** = SAVE, **SCALE** = SEL, **CHORD** = ENV,
+**NOTE REPEAT** = LFO, **GLOBE** = GLO, **SEQ PLAY** = PLAY, **SEQ REC** = REC, **FX**, **ARP**, **SEQ** und
+**OCTAVE− / +** wie aufgedruckt.
+
+| Bedienelement | Funktion |
+|---|---|
+| **Tasten (KLAVIER)** | Normalzustand: alle 37 Tasten spielen die gewählte Spur mit Anschlag, C4 ist ihre Grundnote; OCTAVE− / + verschieben um Oktaven |
+| **SEQ REC kurz** | wechselt zwischen KLAVIER und STEPS |
+| **SEQ REC halten** | bei laufendem Groove: was man spielt, wird in die Steps geschrieben (SEQ PLAY leuchtet rot); hart gespielt = Akzent |
+| **Tasten (STEPS)** | F3 bis G5 wie die 27 Tasten des FM-1 (weiß = Steps, schwarz = Spuren und Helfer); C3 bis D#3 = Pattern A bis D, E3 = CHAIN |
+| **Pads** | die 16 Steps der gewählten Spur in ihrer Farbe (Lauflicht weiß); antippen setzt oder löscht, hart angeschlagen = Akzent |
+| **Pad halten** | K1 Note, K2 Chance, K3 Akzent/Slide, K4 Ratchet; K5 bis K8 eigene Klangwerte des Steps (Locks) |
+| **K1–K8, Bank SOUND** | die acht Klangregler der Spur auf einmal |
+| **K1–K8, Bank LFO+CHAN** | LFO RATE, SHAPE, DEST, DEPTH, TONE, BITS, RATE, DUCK |
+| **K1–K8, Bank FM-1** | MASTER, SELECT, ALGORITHM, PRESETS, KNOB 1 bis 4 wie am FM-1 |
+| **KNOB BANK** | nächste Reglerbank (leuchtet außerhalb von SOUND) |
+| **Fader, Bank A** | Pegel POTKU, BASSO, HATTU, HAPPO |
+| **Fader, Bank B** | Pegel PIIP, OUTO, Delay-Return, Hall-Return |
+| **FADER BANK** | wechselt A / B (leuchtet bei B); ein Fader greift erst, wenn er bewegt wird |
+| **Pitch-Rad** | biegt die gewählte Spur ±2 Halbtöne |
+| **Mod-Rad** | SEKO |
+| **< und >** | drehen die Steps der Spur (wie ◀ ▶ am FM-1) |
+
+Das Display zeigt neben jeder Spur ihren Pegel, unten die acht Werte der Reglerbank und in der Fußzeile Tasten-Modus,
+Reglerbank, Faderbank und Oktave.
+
+**HARDWARE CALIBRATION:** Die Reihenfolge der acht Drehgeber ist am Gerät noch nicht bestätigt. Drehen sich die
+falschen Werte, beim Einschalten **OCTAVE−** und **OCTAVE+** halten und K1 bis K8 der Reihe nach nach rechts drehen.
+
+Nicht auf dem SMK-37: MIDI-Eingang über die Klinkenbuchse (dort ist nur MIDI OUT) und die oberen fünf Tasten G#5 bis
+C6 im STEPS-Modus (noch ohne Funktion).
+
 ## Patterns, Chain und Tonart
 
 Vier Patterns A bis D. **PRESETS** wechselt sie, beim Spielen zum nächsten Takt. **CHAIN** (GLO) spielt A-B, A-C oder
@@ -470,6 +509,7 @@ sh tests/run_tests.sh        # Host-Tests des Kerns
 ./build.sh --host            # Simulator von fm1-base, danach nochmal tests/run_tests.sh
 sh sim/build.sh              # Browser-Emulator: docs/emulator.html
 ./build.sh                   # .fwsc-Paket (braucht JieLis Toolchain und AC79-SDK)
+./build.sh --board smk37     # dasselbe für das SMK-37 (--model elite / mke für die anderen Modelle)
 python3 tools/manual.py      # Handbücher aus dem Code aktualisieren
 ```
 
@@ -478,16 +518,19 @@ python3 tools/manual.py      # Handbücher aus dem Code aktualisieren
 Sequencer, Bedienung und Display stammen aus [ro:MINImal](https://github.com/g0rst/ro-MINImal), die 8-Bit-Ideen aus
 [memetek-fm1](https://github.com/g0rst/memetek-fm1), Acid und Filter-Ideen aus [neur0psy](https://github.com/g0rst/neur0psy).
 Die Plattform ist [fm1-base](https://github.com/charlesvestal/fm1-base) auf felucca-bsp (MPL-2.0). suom1saundi selbst
-steht unter MIT. Nicht mit M-VAVE verbunden.
+steht unter MIT. Die SMK-37-Version enthält den Tastatur-Treiber aus
+[genkigenki/fm1-x0x](https://github.com/genkigenki/fm1-x0x) (GPL-3.0) und steht deshalb als Ganzes unter GPL-3.0.
+Nicht mit M-VAVE verbunden.
 
 ## Versionen
 
 <!-- GEN:version -->
 <!-- (written by tools/manual.py from the code: do not edit by hand) -->
-Aktuelle Version: **0.2**
+Aktuelle Version: **0.3**
 
 | Version | Datum | Änderungen |
 |---|---|---|
 | **0.1** | 2026-11-17 | Erste Version: sechs Stimmen, Sequencer mit Slides und SEKO, 8-Bit-Crusher, Browser-Emulator, Handbuch in drei Sprachen |
 | **0.2** | 2026-11-17 | Generator mit Akkorden und Motiven, neuer Mixer (Kanalzüge, TONE, Master), LFO pro Spur, BODY/SPREAD/CUT, MAXI-Modus mit dem SMK-37 (Belegung, Lernen, Pads, Fader), virtuelles SMK-37 und Web MIDI im Emulator, kleinerer Code |
+| **0.3** | 2026-11-17 | suom1saundi direkt auf dem M-VAVE SMK-37 (Pro, Elite, MKE-P37): Klavier mit Anschlag, Pads als Steps, Fader als Mixer, drei Reglerbänke, Räder; Cloud-Build der Pakete; noch an keinem Gerät getestet |
 <!-- /GEN:version -->

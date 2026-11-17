@@ -264,6 +264,25 @@ CC: CH 1
 | **Pad 16** | NOTE 51, CH 10 | UNDO |
 <!-- /GEN:smk -->
 
+## SMK-37 neH
+
+suom1saundi Qap **SMK-37 Dat** (Pro, Elite, MKE-P37): FM-1 Qo'. `./build.sh --board smk37`. **wej ghewmey DaH
+ngIl**. M-Flasher yIlo': BACKUP FULL FLASH wa'DIch!
+
+| SeH | Qu' |
+|---|---|
+| **leQmey (PIANO)** | Hoch 37 leQmey: tlhegh QoQ; C4 |
+| **SEQ REC** | yIyuv: PIANO / STEPS |
+| **SEQ REC** | yI'uch: QoQ ghItlh |
+| **leQmey (STEPS)** | F3..G5: FM-1 leQmey; C3..D#3: A..D; E3: CHAIN |
+| **PADS** | 16 STEPS |
+| **K1–K8** | KNOB BANK: SOUND, LFO+CHAN, FM-1 |
+| **F1–F4** | FADER BANK: A (POTKU BASSO HATTU HAPPO), B (PIIP OUTO D.RET R.RET) |
+| **PITCH / MOD** | wab ghIr / SEKO |
+| **< >** | STEPS jIr |
+
+OCTAVE− OCTAVE+ je yI'uch, chu'Ha'DI': K1..K8 yIjIr.
+
 ## 8-BIT
 
 **ENV** cha'logh yIyuv: **BITS** 'ej **RATE**. wab veQ, wab Dun!
@@ -320,6 +339,7 @@ git clone --recursive https://github.com/g0rst/suom1saundi
 sh tests/run_tests.sh
 sh sim/build.sh
 ./build.sh
+./build.sh --board smk37
 python3 tools/manual.py
 ```
 
@@ -327,12 +347,13 @@ python3 tools/manual.py
 
 <!-- GEN:version -->
 <!-- (written by tools/manual.py from the code: do not edit by hand) -->
-DaH mI': **0.2**
+DaH mI': **0.3**
 
 | mI' | jaj | choH |
 |---|---|---|
 | **0.1** | 2026-11-17 | wa'DIch: jav ghogh, SLIDE SEKO je, 8-BIT, EMULATOR, wej Hol lo'meH paq |
 | **0.2** | 2026-11-17 | CHORD chu', wab ghom SeH chu', LFO, MAXI: SMK-37, EMULATOR SMK-37, ngoq mach |
+| **0.3** | 2026-11-17 | SMK-37 Dat: PIANO, PADS STEPS, FADERS, wej KNOB BANK; ngIlbe'lu' |
 <!-- /GEN:version -->
 
 Qapla'!

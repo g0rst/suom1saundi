@@ -4,7 +4,8 @@ Firmware für den **M-VAVE FM-1**: eine Groovebox für **Suomisaundi**, finnisch
 galoppierender Filterbass, Acid-Linie, 8-Bit-Melodie wie ein alter Soundchip und FM-Zaps, auf einem polymetrischen
 Sequencer mit Slides, Chance und **SEKO** – dem Regler, der den Groove jedes Mal ein bisschen anders spielen lässt.
 Der Generator schreibt zusammenpassende Tonfolgen über einem Akkord pro Pattern. **MINI** ist der FM-1 allein,
-**MAXI** der FM-1 mit einem **M-VAVE SMK-37** als Steuerzentrale (Tasten, Pads, 16 Knobs, 8 Fader).
+**MAXI** der FM-1 mit einem **M-VAVE SMK-37** als Steuerzentrale (Tasten, Pads, 16 Knobs, 8 Fader). Und als eigene
+Firmware läuft suom1saundi **direkt auf dem SMK-37** (Zweig `smk37`, noch ungetestet).
 
 ![Display](docs/screen.png)
 
@@ -23,8 +24,9 @@ Der Generator schreibt zusammenpassende Tonfolgen über einem Akkord pro Pattern
 | Kern (`app/core/suomi.c`): Klang, Sequencer, Generator, Display | läuft, Host-Tests grün (`tests/run_tests.sh`) |
 | Browser-Emulator (`docs/emulator.html`) | läuft (WebAssembly aus demselben Kern) |
 | FM-1-Anbindung (`app/app.c`) im Host-Simulator von fm1-base | läuft, Testskript `app/tests/basic.txt` grün (inkl. Speichern und Neustart) |
-| Firmware-Paket `.fwsc` | **noch nicht gebaut** (braucht JieLis Toolchain und das AC79-SDK) |
+| Firmware-Paket `.fwsc` | baut GitHub aus dem Quellcode (`.github/workflows/release.yml`) |
 | Lauf auf einem echten FM-1 | **noch nicht getestet** |
+| SMK-37-Firmware (`./build.sh --board smk37`, `smk37-port.yaml`) | baut in der Cloud für Pro, Elite, MKE; **noch nicht getestet** |
 
 **Vor dem Flashen:** Custom-Firmware kann einen FM-1 unbrauchbar machen. Vorher auf die offizielle V15 gehen, Daten
 sichern und wissen, wie man zurückkommt (Installer von fm1-base, `base/README.md`).
@@ -69,6 +71,11 @@ Belegung). K1–K8 Klangregler, K9–K16 LFO und Kanal, F1–F6 Pegel, F7/F8 Del
 Spuren, 7/8 NEW und MUTATE, 9–14 Mute, 15 neuer Groove, 16 UNDO, Mod-Rad SEKO, Pitchbend ±2 Halbtöne. Arpeggiator,
 Akkorde und Skalen liefert das SMK-37 selbst.
 
+**Direkt auf dem SMK-37:** Tasten spielen die Spur (Klavier), SEQ REC kurz wechselt zu STEPS (F3–G5 wie am FM-1,
+C3–D#3 Pattern A–D, E3 CHAIN), SEQ REC halten nimmt auf; Pads = die 16 Steps der Spur, Pad halten + K1–K4 bearbeitet
+den Step; K1–K8 in drei Bänken (SOUND, LFO+CHAN, FM-1); Fader Bank A Pegel POTKU–HAPPO, Bank B PIIP, OUTO, Delay,
+Hall; Pitch-Rad ±2 Halbtöne, Mod-Rad SEKO. Vor dem Aufspielen mit M-Flasher eine volle Sicherung machen.
+
 Alles Weitere im [Handbuch](docs/HANDBUCH.md).
 
 ## Bauen
@@ -79,6 +86,7 @@ sh tests/run_tests.sh        # Host-Tests des Kerns (schreibt groove.wav und Scr
 ./build.sh --host            # Simulator von fm1-base; danach tests/run_tests.sh nochmal
 sh sim/build.sh              # Browser-Emulator: docs/emulator.html
 ./build.sh                   # .fwsc-Paket (braucht JieLis Toolchain und AC79-SDK: base/README.md)
+./build.sh --board smk37     # dasselbe für das SMK-37 (--model elite / mke); wendet smk37/fm1-base.patch an
 python3 tools/manual.py      # Handbücher aus dem Code; --check prüft nur
 ```
 
@@ -90,4 +98,6 @@ GitHub Pages einmalig einschalten: **Settings → Pages → Source: GitHub Actio
 MIT, siehe [LICENSE](LICENSE). Sequencer, Bedienung und Display stammen aus
 [ro:MINImal](https://github.com/g0rst/ro-MINImal), 8-Bit-Ideen aus [memetek-fm1](https://github.com/g0rst/memetek-fm1),
 Acid- und Filter-Ideen aus [neur0psy](https://github.com/g0rst/neur0psy). Plattform:
-[fm1-base](https://github.com/charlesvestal/fm1-base) auf felucca-bsp (MPL-2.0). Nicht mit M-VAVE verbunden.
+[fm1-base](https://github.com/charlesvestal/fm1-base) auf felucca-bsp (MPL-2.0). Die SMK-37-Version enthält den
+Tastatur-Treiber aus [genkigenki/fm1-x0x](https://github.com/genkigenki/fm1-x0x) (GPL-3.0, über
+`smk37/fm1-base.patch`) und steht als Ganzes unter GPL-3.0. Nicht mit M-VAVE verbunden.
