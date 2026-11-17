@@ -1,0 +1,104 @@
+# smk37-port.yaml: alle Entscheidungen für suom1saundi auf dem M-VAVE SMK-37, an einer Stelle.
+# Vorlage: genkigenki/fm1-to-smk37 (smk37-port.yaml, AGENTS.md). Erst diese Datei ändern, dann den Code.
+# Die Felder heißen wie in der Vorlage (Englisch), die Erklärungen sind Deutsch.
+
+firmware:
+  name: suom1saundi             # gleicher Name, gleiches Logo auf dem SMK-37 (kein "xxx37")
+  upstream: ""                  # eigene Firmware, kein fremdes Original
+  base: suom1saundi 0.2 auf fm1-base (Submodul base/) mit felucca-bsp (base/bsp/)
+  family: other                 # fm1-base: weder SLOOP- noch Felucca-Fork
+  board_layer: by_hand          # fm1-base hat noch keine SMK-37-Unterstützung (felucca-bsp: "Planned").
+                                # Vorbild: die SMK-Ports der charlesvestal-Firmwares (genkigenki/fm1-x0x Zweig smk37,
+                                # genkigenki/fm1-fomni), deren device-Dateien denen von fm1-base entsprechen
+                                # (plat_fm1.c, panel.c, main_fm1.c, storage.c), und docs/01-hardware.md als Datenblatt.
+                                # Umsetzung als Patch-Serie auf base/, die nur der SMK-Build anwendet: das Submodul und
+                                # der FM-1-Build bleiben unverändert.
+  lost_on_smk: [TRS MIDI IN / MIDI-Clock über die Klinkenbuchse (das SMK hat dort nur MIDI OUT)]
+  priorities:
+    - Klavier spielen und live aufnehmen mit Anschlagdynamik
+    - die 16 Pads als Step-Raster der gewählten Spur
+    - alle 8 Klangregler einer Spur gleichzeitig auf K1–K8
+
+delivery:
+  mode: own                     # eigene Firmware: im eigenen Repository, Zweig smk37, bis der Besitzer zusammenführt
+  package: suom1saundi-smk37.fwsc   # dazu suom1saundi-smk37-elite.fwsc, suom1saundi-smk37-mke.fwsc
+  identity: SMK-37 Pro_53       # die eigene Nummer wie auf dem FM-1 (id_prefix FM-1_53), nicht _9NN
+  usb_name: suom1saundi SMK-37  # auf dem FM-1 "suom1saundi FM-1"; Installer filtern auf "suom1saundi" und "smk"
+  data_family: SUOMI            # eigene Datenfamilie: Daten anderer Firmwares gelten als leer
+  copyright: g0rst
+
+models: [pro, elite, mke]       # Pro auch für Donner Starrykey 37 Play; nur das Pro ist bisher an einem Gerät geprüft
+
+keys:
+  modes:                        # REC kurz: zwischen den beiden Modi wechseln (Anzeige im Display)
+    piano:                      # Normalzustand
+      all_37: spielen die gewählte Spur chromatisch mit Anschlag, C4 = Grundnote der Spur (wie MAXI)
+      record: REC halten bei laufendem Groove = die gespielten Noten werden in die Steps geschrieben
+    fm1:                        # wie die 27 Tasten des FM-1 (F3..G5): weiß = Steps, schwarz = Spuren und Funktionen
+      middle: fm1
+      outer_low: [Pattern A, Pattern B, Pattern C, Pattern D, CHAIN]   # C3, C#3, D3, D#3, E3 (Vorschlag)
+      outer_high: [offen]                                              # G#5, A5, A#5, B5, C6
+  outer: extend                 # im Klavier-Modus: C3–C6, also mehr Tonumfang
+  velocity: factory             # die Anschlagkurven aus der Kalibrierung des Geräts
+
+pads:
+  pattern: steps                # 16 Pads = 16 Steps der gewählten Spur
+  order: reading                # Pads 1–8 obere Reihe, 9–16 untere Reihe
+  colours: screen               # in der Farbe der Spur: gesetzte Steps hell, Lauflicht weiß, leere Steps dunkel
+  idle: dark
+  playhead: bright
+  velocity: true                # Anschlag setzt den Akzent des Steps
+  notes: "Pad halten + K1–K4: Note, Chance, Akzent/Slide, Ratchet des Steps (wie eine weiße Taste am FM-1)"
+
+faders:
+  pattern: banks                # Mixer in Bänken
+  takeover: soft                # ein Fader greift erst, wenn er bewegt wird (auch nach dem Bankwechsel)
+  bank_button: FADER BANK
+  banks:
+    A: [Pegel POTKU, Pegel BASSO, Pegel HATTU, Pegel HAPPO]
+    B: [Pegel PIIP, Pegel OUTO, Delay-Return, Hall-Return]
+  screen: bar                   # kurze Einblendung von Name und Wert
+
+wheels:
+  pitch: {target: bend, range_semitones: 2, applies_to: selected}   # wie MAXI
+  mod: {target: macro, detail: SEKO}                                 # wie MAXI
+  calibration: auto             # Mitte beim Einschalten, Weg lernt mit, Totzone ±1
+
+rules:
+  no_doubles: true
+  doubles_allowed: []
+
+knobs:
+  layout: custom
+  banks:                        # KNOB BANK schaltet weiter
+    1: [Klang p1, p2, p3, p4, p5, p6, p7, p8]            # alle acht Klangregler der Spur (EDIT und EDIT² zugleich)
+    2: [LFO RATE, LFO SHAPE, LFO DEST, LFO DEPTH, TONE, BITS, RATE, DUCK]
+    3: [MASTER, SELECT, ALGORITHM, PRESETS, KNOB1, KNOB2, KNOB3, KNOB4]   # die Regler des FM-1, damit jede Seite
+                                                                          # des Handbuchs erreichbar bleibt
+  step: detent
+
+buttons:
+  map: printed                  # PATCH = HOME, CHORD = ENV, NOTE REPEAT = LFO, PARA = EDIT, SCALE = SEL, GLOBE = GLO,
+                                # BT = SAVE, SEQ PLAY = PLAY, SEQ REC = REC (kurz: Tasten-Modus), FX, ARP, SEQ,
+                                # OCTAVE- / OCTAVE+
+  names: firmware
+  extra:
+    KNOB BANK: Reglerbank 1 / 2 / 3
+    FADER BANK: Faderbank A / B
+    "<": wie ◀ (vorheriger Step-Bereich / Seite)
+    ">": wie ▶
+
+screen:
+  style: redesign               # gleiche Auflösung wie der FM-1 (240 x 240), aber für das SMK-Panel neu aufgeteilt
+  colours: die Spurfarben, gleich auf Display und Pads
+  rules:
+    - unten die acht Reglerwerte der aktiven Reglerbank, in der Anordnung von K1–K8
+    - oben die sechs Spuren mit Pegelanzeige, die gewählte hervorgehoben
+    - Tasten-Modus (KLAVIER / FM-1) und Faderbank immer sichtbar
+    - was man anfasst, zeigt das Display zuerst
+
+pedal: none
+
+open_questions:
+  - Die fünf oberen Extra-Tasten (G#5–C6) im FM-1-Modus.
+  - MASTER liegt nur auf Reglerbank 3. Reicht das, oder soll die Lautstärke woanders hin?
