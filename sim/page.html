@@ -132,6 +132,30 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--led); outli
   .block { height: 150px; }
   .key.b { height: 88px; }
 }
+
+/* the virtual SMK-37 (MAXI): its knobs, faders, pads and keys send the factory map's MIDI */
+.smk { background: #24262a; color: #e8e6e0; border-radius: 14px; padding: 14px; display: grid; gap: 14px; grid-template-columns: 1fr;
+  box-shadow: 0 10px 24px -14px rgba(0, 0, 0, .6); user-select: none; -webkit-user-select: none; }
+.smk h2 { margin: 0; font-size: 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.smk h2 small { font-weight: 500; color: #9aa0a3; font-size: 14px; }
+.smk .grp { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.sk { display: flex; flex-direction: column; align-items: center; gap: 3px; font: 600 11px var(--font); color: #b9bcbe; width: 52px; }
+.sk .dial { width: 40px; height: 40px; background: #0e0f10; box-shadow: 0 0 0 3px #3a3d42; }
+.sk .v { font-weight: 500; color: #8c9195; }
+.fd { display: flex; flex-direction: column; align-items: center; gap: 4px; font: 600 11px var(--font); color: #b9bcbe; }
+.fd input { writing-mode: vertical-lr; direction: rtl; height: 96px; width: 26px; accent-color: var(--led); }
+.pads { display: grid; grid-template-columns: repeat(8, minmax(40px, 1fr)); gap: 6px; min-width: 360px; }
+.pad { aspect-ratio: 1; border: 0; border-radius: 6px; background: #3a2c44; color: #f2e9f7; font: 700 10px/1.1 var(--font);
+  touch-action: none; cursor: pointer; box-shadow: inset 0 -3px 0 rgba(0,0,0,.35); padding: 2px; }
+.pad.t { background: #5a2f6e; } .pad.m { background: #6b2d3a; } .pad.f { background: #2f4a5e; }
+.pad.down { filter: brightness(1.7); }
+.bankb { border: 0; border-radius: 6px; padding: 7px 10px; background: #3a3d42; color: #e8e6e0; font: 600 13px var(--font); cursor: pointer; }
+.bankb.on { background: var(--led); color: #1d0716; }
+.smkkeys { display: flex; height: 70px; gap: 2px; flex: 1 1 100%; position: relative; }
+.smkkeys button { flex: 1; border: 0; border-radius: 0 0 4px 4px; background: #f3f4f2; cursor: pointer; touch-action: none; font: 600 10px var(--font); color: #777; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 3px; }
+.smkkeys button.bk { background: #111; color: #888; height: 62%; flex: .7; margin: 0 -1px; }
+.smkkeys button.down { background: var(--led); }
+@media (min-width: 760px) { .smk { grid-template-columns: auto auto 1fr; align-items: end; } .smk h2, .smkkeys { grid-column: 1 / -1; } }
 @media (prefers-reduced-motion: reduce) { .btn.down, .pm button:active { transform: none; } }
 </style>
 </head>
@@ -162,6 +186,15 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--led); outli
     </div>
     <div class="keys" id="keys"></div>
   </div>
+
+  <section class="smk" id="smk" aria-label="Virtuelles SMK-37 für den MAXI-Modus">
+    <h2>SMK-37 · MAXI <small>sendet die Werks-Belegung (Tasten Kanal 1, Pads Kanal 10 ab Note 36, Knobs CC 20–35, Fader CC 41–48)</small>
+      <button class="bankb" id="webmidi" type="button">Echtes SMK-37 per Web MIDI</button></h2>
+    <div class="grp" id="smkknobs"></div>
+    <div class="grp" id="smkfaders"></div>
+    <div class="pads" id="smkpads"></div>
+    <div class="smkkeys" id="smkkeys"></div>
+  </section>
   <div class="bar">
     <label for="hold"><input id="hold" type="checkbox"> Weiße Tasten und SAVE einrasten (für die Maus: halten und dabei drehen)</label>
   </div>
@@ -172,13 +205,14 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--led); outli
       <li><b>PLAY STOP</b> startet den Groove. Die 16 weißen Tasten sind die Steps der gewählten Spur: tippen schaltet einen Step.</li>
       <li>Schwarze Tasten links wählen die Spur: POTKU (Kick), BASSO (Bass), HATTU (Hats), HAPPO (Acid), PIIP (8-Bit-Melodie), OUTO (FM-Zaps). Rechts: CLR leert die Spur, ◀ ▶ verschieben sie, NEW würfelt den ganzen Groove neu, UNDO nimmt das zurück.</li>
       <li>Weiße Taste halten und drehen: <b>KNOB1</b> Note, <b>KNOB2</b> Chance, <b>KNOB3</b> Akzent/Slide (aus, ACC, SLD, A+S), <b>KNOB4</b> Ratchet.</li>
-      <li><b>EDIT</b> Klang der Spur, <b>EDIT</b> nochmal: die anderen vier Klangregler. Dort eine weiße Taste halten und drehen: Parameter-Lock nur für diesen Step.</li>
-      <li><b>ENV</b> Pegel, Pan, Delay, Reverb. <b>ENV</b> nochmal: 8-BIT mit BITS und RATE für die Spur.</li>
+      <li><b>EDIT</b> Klang der Spur, <b>EDIT</b> nochmal: die anderen vier Klangregler, dreimal: MOD (LFO der Spur). Eine weiße Taste halten und drehen: Parameter-Lock nur für diesen Step.</li>
+      <li><b>ENV</b> Mixer: alle Spuren mit Pegelanzeige, Knobs für Pegel, Pan, Delay, Reverb. <b>ENV</b> nochmal: CHANNEL (TONE, BITS, RATE, DUCK), dreimal: MASTER (Drive, Returns, Breite).</li>
       <li><b>SEQ</b>: Euklid, zweimal LINK, dreimal TIMING. <b>ALGORITHM</b> setzt die Looplänge (1 bis 16).</li>
     </ul>
     <ul>
       <li><b>HOME</b> Tempo, Swing, SEKO, Duck. SEKO (finnisch „verrückt“) lässt den Groove jedes Mal ein bisschen anders spielen.</li>
-      <li><b>GLO</b> Grundton, Skala, MIDI-Clock, Chain. <b>GLO</b> nochmal: XPOSE des Patterns und DRIVE der Summe.</li>
+      <li><b>GLO</b> Grundton, Skala, MIDI-Clock, Chain. <b>GLO</b> nochmal: XPOSE und Akkord des Patterns, dreimal: SMK-37 (MAXI an/aus, Kanäle; SEL lernt die Belegung).</li>
+      <li><b>MAXI:</b> Das virtuelle SMK-37 unten (oder ein echtes per Web MIDI) steuert alles: K1–K8 die acht Klangregler, K9–K16 LFO und Kanal, F1–F6 die Pegel, F7/F8 Delay- und Hall-Return, Pads 1–6 spielen die Spuren, Mod-Rad SEKO.</li>
       <li><b>FX</b> Delay und Reverb, <b>FX</b> nochmal: Sidechain.</li>
       <li><b>SAVE</b> kurz: speichern (hier im Browser). SAVE halten und <b>PRESETS</b>/<b>SELECT</b> drehen: Pattern oder Spur kopieren.</li>
       <li><b>PRESETS</b> wechselt Pattern A bis D zum nächsten Takt. <b>SEL</b> erzeugt die Spur neu, <b>ARP</b> verändert sie leicht. <b>LFO</b> kurz: stumm, halten: Solo. <b>REC</b>: Tasten spielen die Spur. Leertaste: PLAY.</li>
@@ -192,7 +226,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--led); outli
   "use strict";
   var WASM = "@@WASM@@";
   var BTN = ["FX", "SEL", "ENV", "LFO", "EDIT", "GLO", "HOME", "SAVE", "ARP", "SEQ", "PLAY STOP", "REC", "OCT−", "OCT+"];
-  var BTN_SUB = ["FX / SC", "Neu", "Mix / 8-Bit", "Mute", "Sound 1/2", "Global 1/2", "Groove", "Sichern", "Mutate", "Euklid", "Start", "Keys", "Spur −", "Spur +"];
+  var BTN_SUB = ["FX / SC", "Neu", "Mix·Kanal·Master", "Mute", "Sound 1/2·Mod", "Global 1/2·SMK", "Groove", "Sichern", "Mutate", "Euklid", "Start", "Keys", "Spur −", "Spur +"];
   /* as on the FM-1: FX SEL ENV LFO EDIT GLO over HOME SAVE ARP SEQ PLAY REC; OCT- OCT+ under the left knobs */
   var BTN_ORDER = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
   var ENC = ["SELECT", "ALGORITHM", "PRESETS", "KNOB1", "KNOB2", "KNOB3", "KNOB4"];
@@ -389,6 +423,95 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--led); outli
     }
     requestAnimationFrame(frame);
   }
+
+
+  /* ---- the virtual SMK-37 and Web MIDI: MIDI into the core (sim_midi) ---- */
+  function midi(st, d1, d2) { if (w) { w.sim_midi(st, d1 | 0, d2 | 0); audioKick(); } }
+  (function smk() {
+    var KN = ["K1", "K2", "K3", "K4", "K5", "K6", "K7", "K8"], knobBank = 0, faderBank = 0, kv = [], kel = [];
+    var box = $("smkknobs"), i;
+    for (i = 0; i < 16; i++) kv[i] = 64;
+    var kb = document.createElement("button"); kb.type = "button"; kb.className = "bankb"; kb.textContent = "KNOB BANK";
+    kb.addEventListener("click", function () { knobBank ^= 1; kb.classList.toggle("on", !!knobBank); relabel(); });
+    KN.forEach(function (n, j) {
+      var d = document.createElement("div"); d.className = "sk";
+      var dial = document.createElement("button"); dial.type = "button"; dial.className = "dial"; dial.innerHTML = "<i></i>";
+      var nm = document.createElement("div"), val = document.createElement("div"); val.className = "v";
+      var y0 = null, acc = 0;
+      function set(dv) {
+        var k = j + 8 * knobBank;
+        kv[k] = Math.max(0, Math.min(127, kv[k] + dv));
+        midi(0xB0, 20 + k, kv[k]); show();
+      }
+      function show() { var k = j + 8 * knobBank; val.textContent = kv[k]; dial.style.transform = "rotate(" + (kv[k] * 2.6 - 165) + "deg)"; }
+      dial.addEventListener("pointerdown", function (e) { e.preventDefault(); y0 = e.clientY; acc = 0; try { dial.setPointerCapture(e.pointerId); } catch (x) {} });
+      dial.addEventListener("pointermove", function (e) { if (y0 === null) return; acc += y0 - e.clientY; y0 = e.clientY; while (acc >= 3) { acc -= 3; set(2); } while (acc <= -3) { acc += 3; set(-2); } });
+      ["pointerup", "pointercancel"].forEach(function (x) { dial.addEventListener(x, function () { y0 = null; }); });
+      dial.addEventListener("wheel", function (e) { e.preventDefault(); set(e.deltaY < 0 ? 4 : -4); }, { passive: false });
+      d.appendChild(nm); d.appendChild(dial); d.appendChild(val); box.appendChild(d);
+      kel[j] = { nm: nm, show: show };
+    });
+    box.appendChild(kb);
+    function relabel() { kel.forEach(function (e, j) { e.nm.textContent = "K" + (j + 1 + 8 * knobBank); e.show(); }); }
+    relabel();
+    /* faders: F1..F4, with FADER BANK F5..F8; and the mod wheel */
+    var fb = $("smkfaders"), fel = [], fv = [100, 100, 100, 100, 100, 100, 100, 100];
+    for (i = 0; i < 4; i++) (function (j) {
+      var d = document.createElement("div"); d.className = "fd";
+      var r = document.createElement("input"); r.type = "range"; r.min = 0; r.max = 127; r.value = 100;
+      var nm = document.createElement("div");
+      r.addEventListener("input", function () { var k = j + 4 * faderBank; fv[k] = +r.value; midi(0xB0, 41 + k, fv[k]); });
+      d.appendChild(r); d.appendChild(nm); fb.appendChild(d); fel[j] = { r: r, nm: nm };
+    })(i);
+    var fbb = document.createElement("button"); fbb.type = "button"; fbb.className = "bankb"; fbb.textContent = "FADER BANK";
+    fbb.addEventListener("click", function () { faderBank ^= 1; fbb.classList.toggle("on", !!faderBank); flabel(); });
+    function flabel() { fel.forEach(function (e, j) { var k = j + 4 * faderBank; e.nm.textContent = "F" + (k + 1); e.r.value = fv[k]; }); }
+    var mw = document.createElement("div"); mw.className = "fd";
+    var mr = document.createElement("input"); mr.type = "range"; mr.min = 0; mr.max = 127; mr.value = 40;
+    mr.addEventListener("input", function () { midi(0xB0, 1, +mr.value); });
+    var mn = document.createElement("div"); mn.textContent = "MOD";
+    mw.appendChild(mr); mw.appendChild(mn); fb.appendChild(mw); fb.appendChild(fbb); flabel();
+    /* pads: two rows, 9..16 over 1..8 */
+    var PN = ["POTKU", "BASSO", "HATTU", "HAPPO", "PIIP", "OUTO", "NEU", "MUTATE",
+              "M POTKU", "M BASSO", "M HATTU", "M HAPPO", "M PIIP", "M OUTO", "GROOVE", "UNDO"];
+    var pb = $("smkpads"), order = [8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7];
+    order.forEach(function (p) {
+      var b = document.createElement("button"); b.type = "button";
+      b.className = "pad " + (p < 6 ? "t" : p >= 8 && p < 14 ? "m" : "f"); b.innerHTML = (p + 1) + "<br>" + PN[p];
+      b.addEventListener("pointerdown", function (e) { e.preventDefault(); b.classList.add("down"); midi(0x99, 36 + p, 110); });
+      ["pointerup", "pointercancel", "pointerleave"].forEach(function (x) { b.addEventListener(x, function () { b.classList.remove("down"); }); });
+      pb.appendChild(b);
+    });
+    /* two octaves of keys from C3; the computer keyboard too (A W S E D F T G Y H U J K: C4 up) */
+    var kk = $("smkkeys"), BLK = [1, 3, 6, 8, 10];
+    for (i = 0; i < 25; i++) (function (n) {
+      var b = document.createElement("button"); b.type = "button";
+      if (BLK.indexOf(n % 12) >= 0) b.className = "bk"; else if (n % 12 === 0) b.textContent = "C" + (3 + n / 12);
+      b.addEventListener("pointerdown", function (e) { e.preventDefault(); b.classList.add("down"); midi(0x90, 48 + n, 100); });
+      ["pointerup", "pointercancel", "pointerleave"].forEach(function (x) { b.addEventListener(x, function () { b.classList.remove("down"); }); });
+      kk.appendChild(b);
+    })(i);
+    var CK = "awsedftgyhujk";
+    document.addEventListener("keydown", function (e) {
+      if (e.repeat || e.target.tagName === "INPUT" || e.metaKey || e.ctrlKey) return;
+      var j = CK.indexOf(e.key.toLowerCase());
+      if (j >= 0) { midi(0x90, 60 + j, 100); e.preventDefault(); }
+    });
+    /* a real SMK-37 (or any controller) on the computer: every message to the core */
+    $("webmidi").addEventListener("click", function () {
+      var btn = this;
+      if (!navigator.requestMIDIAccess) { fail("Dieser Browser hat kein Web MIDI (Chrome oder Edge nehmen)."); return; }
+      navigator.requestMIDIAccess().then(function (acc) {
+        var n = 0;
+        acc.inputs.forEach(function (inp) {
+          n++;
+          inp.onmidimessage = function (ev) { var d = ev.data; if (d.length >= 1) midi(d[0], d[1] || 0, d[2] || 0); };
+        });
+        btn.textContent = n ? "Web MIDI: " + n + " Eingang" + (n > 1 ? "e" : "") : "Kein MIDI-Gerät gefunden";
+        btn.classList.toggle("on", n > 0);
+      }, function () { fail("Web MIDI wurde nicht erlaubt."); });
+    });
+  })();
 
   /* ---- start ---- */
   var bin;

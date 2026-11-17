@@ -3,6 +3,8 @@
 Firmware für den **M-VAVE FM-1**: eine Groovebox für **Suomisaundi**, finnischen Freestyle-Psytrance. Psy-Kick,
 galoppierender Filterbass, Acid-Linie, 8-Bit-Melodie wie ein alter Soundchip und FM-Zaps, auf einem polymetrischen
 Sequencer mit Slides, Chance und **SEKO** – dem Regler, der den Groove jedes Mal ein bisschen anders spielen lässt.
+Der Generator schreibt zusammenpassende Tonfolgen über einem Akkord pro Pattern. **MINI** ist der FM-1 allein,
+**MAXI** der FM-1 mit einem **M-VAVE SMK-37** als Steuerzentrale (Tasten, Pads, 16 Knobs, 8 Fader).
 
 ![Display](docs/screen.png)
 
@@ -31,15 +33,16 @@ sichern und wissen, wie man zurückkommt (Installer von fm1-base, `base/README.m
 
 | Spur | Synthese | EDIT (K1–K4) | EDIT² (K1–K4) |
 | --- | --- | --- | --- |
-| **POTKU** | Sinus mit tiefem Pitch-Sweep, Klick, Soft-Clipper | TUNE, DECAY, SWEEP, DRIVE | SNAP, CLICK, HOLD |
+| **POTKU** | Sinus mit tiefem Pitch-Sweep, Klick, Soft-Clipper | TUNE, DECAY, SWEEP, DRIVE | SNAP, CLICK, HOLD, BODY |
 | **BASSO** | Säge/Rechteck + Sub, 18-dB-Resonanzfilter mit Hüllkurve, Slides | CUTOFF, RESO, ENVMOD, DECAY | WAVE, SUB, GLIDE, DRIVE |
-| **HATTU** | FM-Metall gegen Rauschen, 8-Bit-Rauschkanal (LFSR) | DECAY, TONE, METAL, OPEN | CHIP, SHAKE |
+| **HATTU** | FM-Metall gegen Rauschen, 8-Bit-Rauschkanal (LFSR) | DECAY, TONE, METAL, OPEN | CHIP, SHAKE, SPREAD, CUT |
 | **HAPPO** | Acid-Linie im 303-Stil: Akzent, Slide | CUTOFF, RESO, ENVMOD, DECAY | WAVE, ACCENT, GLIDE, DRIVE |
 | **PIIP** | Soundchip: Puls 12/25/50 %, 4-Bit-Dreieck, Säge, Rauschen; Arpeggio, Vibrato | WAVE, DECAY, ARP, VIBRATO | SPEED, PWM, BEND, DETUNE |
 | **OUTO** | FM-Paar mit Feedback und Zap-Hüllkurve: Laser, Blubbern | DECAY, FM, RATIO, ZAP | ZTIME, FEEDBK, WOBBLE, RANDOM |
 
-Pro Spur dazu ein **8-Bit-Crusher** (BITS, RATE), Pegel, Pan, Delay, Hall und Sidechain-Anteil. Summe: Tempo-Delay,
-Hall, Kick-Ducking, Drive. 44,1 kHz, Blöcke zu 256 Frames.
+Pro Spur dazu ein **LFO** im Takt (EDIT ×3) und ein Kanalzug im **Mixer** (ENV): Pegel, Pan, Delay, Hall, TONE-Filter,
+**8-Bit-Crusher** (BITS, RATE), Ducking, mit Pegelanzeigen aller Spuren. Master: Drive, Effekt-Returns, Stereobreite.
+44,1 kHz, Blöcke zu 256 Frames.
 
 ## Bedienung (Kurzfassung)
 
@@ -50,15 +53,21 @@ Hall, Kick-Ducking, Drive. 44,1 kHz, Blöcke zu 256 Frames.
 | schwarze Tasten 1–6 | Spur: POTKU, BASSO, HATTU, HAPPO, PIIP, OUTO |
 | schwarze Tasten 7–11 | CLR, ◀, ▶, NEW (ganzer Groove neu), UNDO |
 | HOME | Tempo, Swing, **SEKO**, Duck |
-| EDIT, EDIT² | die acht Klangregler der Spur (Step halten: Parameter-Lock) |
-| ENV, ENV² | Mix der Spur; 8-Bit (BITS, RATE) |
+| EDIT, ×2, ×3 | die acht Klangregler der Spur (Step halten: Parameter-Lock); MOD (LFO) |
+| ENV, ×2, ×3 | Mixer; Kanal (TONE, BITS, RATE, DUCK); Master (DRIVE, Returns, WIDTH) |
 | FX, FX² | Delay und Hall; Sidechain |
-| GLO, GLO² | Grundton, Skala, MIDI-Clock, Chain; XPOSE, DRIVE |
+| GLO, ×2, ×3 | Grundton, Skala, MIDI-Clock, Chain; XPOSE, Akkord; SMK-37 (MAXI, Kanäle, SEL lernt) |
 | SEQ, ×2, ×3 | Euklid, Link, Timing |
 | ALGORITHM / PRESETS | Looplänge / Pattern A–D |
 | SEL / ARP / LFO | Spur neu / leicht verändern / stumm (halten: Solo) |
 | REC | Tasten spielen die Spur |
 | SAVE | speichern; halten + PRESETS/SELECT: Pattern/Spur kopieren |
+
+**MAXI mit dem SMK-37:** MIDI-Kabel vom SMK-37 an die MIDI-Buchse des FM-1. Ab Werk: Tasten Kanal 1, Pads Kanal 10
+ab Note 36, Knobs CC 20–35, Fader CC 41–48 (in MIDI SUITE so einstellen, oder GLO ×3 und SEL: der FM-1 lernt die
+Belegung). K1–K8 Klangregler, K9–K16 LFO und Kanal, F1–F6 Pegel, F7/F8 Delay- und Hall-Return, Pads 1–6 spielen die
+Spuren, 7/8 NEW und MUTATE, 9–14 Mute, 15 neuer Groove, 16 UNDO, Mod-Rad SEKO, Pitchbend ±2 Halbtöne. Arpeggiator,
+Akkorde und Skalen liefert das SMK-37 selbst.
 
 Alles Weitere im [Handbuch](docs/HANDBUCH.md).
 

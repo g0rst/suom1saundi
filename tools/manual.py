@@ -62,6 +62,7 @@ DESC = {
         "SNAP": ("wie schnell der Sweep fällt", "how fast the sweep falls", "pum nom"),
         "CLICK": ("Klick am Anfang", "the click at the start", "wab tagh 'och"),
         "HOLD": ("volle Lautstärke halten, bevor sie fällt (bis 86 ms)", "full level held before it falls (up to 86 ms)", "HoS naQ yI'uch (86 ms)"),
+        "BODY": ("zweite Harmonische: voller, kastiger", "the second harmonic: fuller, boxier", "wab 'ugh law'"),
     },
     "BASSO": {
         "CUTOFF": ("Grenzfrequenz des Tiefpasses (18 dB)", "the low-pass's cutoff (18 dB)", "tlhegh Hab: Dung bIng"),
@@ -80,6 +81,8 @@ DESC = {
         "OPEN": ("wie weit ein Akzent die Hat öffnet", "how far an accent opens the hat", "ACC poSmoH"),
         "CHIP": ("Mischung mit dem 8-Bit-Rauschkanal (LFSR)", "blend with the 8-bit noise channel (LFSR)", "8-BIT veQ wab"),
         "SHAKE": ("weicher Anstieg: Shaker statt Hat", "a soft attack: a shaker instead of a hat", "QIt tagh"),
+        "SPREAD": ("jeder Schlag woanders im Stereobild", "each hit somewhere else in the stereo field", "poS nIH pIm"),
+        "CUT": ("Hochpass: höher ist dünner", "high-pass: higher is thinner", "wab Dung neH"),
     },
     "HAPPO": {
         "CUTOFF": ("Grenzfrequenz: die Acid-Linie", "cutoff: the acid line", "tlhegh Hab: Dung bIng"),
@@ -128,7 +131,10 @@ GLOBAL = [  # (field, screen name, page, de, en, tlh)
     ("root", "ROOT", "GLO", "Grundton (MIDI-Note)", "root note (MIDI note)", "wab wa'DIch"),
     ("scale", "SCALE", "GLO", "Skala (siehe unten)", "scale (see below)", "wab ghom"),
     ("clock_out", "CLOCK", "GLO", "MIDI-Clock senden", "send MIDI clock", "MIDI CLOCK"),
-    ("drive", "DRIVE", "GLO²", "Sättigung der Summe", "saturation of the sum", "Hoch HoS"),
+    ("drive", "DRIVE", "ENV³", "Sättigung der Summe", "saturation of the sum", "Hoch HoS"),
+    ("dly_ret", "D.RET", "ENV³", "Rückweg des Delays in die Summe", "the delay's return into the sum", "DELAY chegh"),
+    ("rev_ret", "R.RET", "ENV³", "Rückweg des Halls", "the reverb's return", "REVERB chegh"),
+    ("width", "WIDTH", "ENV³", "Stereobreite: 0 mono, 64 normal, 127 breit", "stereo width: 0 mono, 64 as is, 127 wide", "poS nIH tIn"),
     ("dly_time", "D.TIME", "FX", "Delay-Zeit 1/16, 1/8, 3/16", "delay time 1/16, 1/8, 3/16", "DELAY poH"),
     ("dly_fb", "D.FDBK", "FX", "Delay-Feedback", "delay feedback", "DELAY HoS"),
     ("rev_size", "R.SIZE", "FX", "Hallgröße", "reverb size", "REVERB tIn"),
@@ -227,23 +233,63 @@ def gen_version(lang):
 
 def gen_pages(core, lang):
     h = H[lang]
-    rows = [("HOME", core["pages"][0], "TEMPO", "SWING", "SEKO", "DUCK"),
-            ("EDIT", core["pages"][1], "p1", "p2", "p3", "p4"),
-            ("EDIT ×2", core["pages"][9], "p5", "p6", "p7", "p8"),
-            ("ENV", core["pages"][2], "LEVEL", "PAN", "DELAY", "REVERB"),
-            ("ENV ×2", core["pages"][10], "BITS", "RATE", "", ""),
-            ("FX", core["pages"][3], "D.TIME", "D.FDBK", "R.SIZE", "R.DAMP"),
-            ("FX ×2", core["pages"][6], "SOURCE", "DEPTH", "RELEASE", "AMOUNT"),
-            ("GLO", core["pages"][4], "ROOT", "SCALE", "CLOCK", "CHAIN"),
-            ("GLO ×2", core["pages"][11], "XPOSE", "DRIVE", "", ""),
-            ("SEQ", core["pages"][5], "HITS", "ROTATE", "CHANCE", "ACCENT"),
-            ("SEQ ×2", core["pages"][7], "SOURCE", "MODE", "", ""),
-            ("SEQ ×3", core["pages"][8], "STEP n", "TRACK", "", "")]
+    pg = core["pages"]
+    rows = [("HOME", pg[0], "TEMPO", "SWING", "SEKO", "DUCK"),
+            ("EDIT", pg[1], "p1", "p2", "p3", "p4"),
+            ("EDIT ×2", pg[9], "p5", "p6", "p7", "p8"),
+            ("EDIT ×3", pg[12], "RATE", "SHAPE", "DEST", "DEPTH"),
+            ("ENV", pg[2], "LEVEL", "PAN", "DELAY", "REVERB"),
+            ("ENV ×2", pg[10], "TONE", "BITS", "RATE", "DUCK"),
+            ("ENV ×3", pg[13], "DRIVE", "D.RET", "R.RET", "WIDTH"),
+            ("FX", pg[3], "D.TIME", "D.FDBK", "R.SIZE", "R.DAMP"),
+            ("FX ×2", pg[6], "SOURCE", "DEPTH", "RELEASE", "AMOUNT"),
+            ("GLO", pg[4], "ROOT", "SCALE", "CLOCK", "CHAIN"),
+            ("GLO ×2", pg[11], "XPOSE", "CHORD", "", ""),
+            ("GLO ×3", pg[14], "MAXI", "KEYS CH", "PADS CH", "CC CH"),
+            ("SEQ", pg[5], "HITS", "ROTATE", "CHANCE", "ACCENT"),
+            ("SEQ ×2", pg[7], "SOURCE", "MODE", "", ""),
+            ("SEQ ×3", pg[8], "STEP n", "TRACK", "", "")]
     btn = {"de": "Taste", "en": "Button", "tlh": "leQ"}[lang]
     return table([btn, h["page"], "K1", "K2", "K3", "K4"], [(f"**{a}**", b, c, d, e, f) for a, b, c, d, e, f in rows])
 
 
-GEN = {"sound": gen_sound, "global": gen_global, "scales": gen_scales, "pages": gen_pages}
+def gen_smk(core, lang):
+    """the SMK-37's factory map and what each control does, from smk_preset and smk_input in the code"""
+    src = CORE.read_text(encoding="utf-8")
+    m = re.search(r"static void smk_preset\(ss_smk_t \*m\)\s*\{(.*?)\n\}", src, re.S).group(1)
+    val = {k: int(v) for k, v in re.findall(r"m->(\w+) = (\d+);", m)}
+    kb = int(re.search(r"knob_cc\[i\] = \(uint8_t\)\((\d+) \+ i\)", m).group(1))
+    fb = int(re.search(r"fader_cc\[i\] = \(uint8_t\)\((\d+) \+ i\)", m).group(1))
+    nm = c_strings(src, "NM")
+    i = L[lang]
+    T = {"ctl": ("Bedienelement", "Control", "SeH"), "msg": ("MIDI (Werk)", "MIDI (factory)", "MIDI"),
+         "does": ("Funktion auf dem FM-1", "What it does on the FM-1", "Qu'"),
+         "keys": ("Tasten", "keys", "leQmey"), "pads": ("Pads", "pads", "PADS"),
+         "ch": ("Kanal", "channel", "CH"), "note": ("Note", "note", "NOTE"),
+         "play": ("spielen die gewählte Spur; C4 ist ihre Grundnote; mit REC und PLAY aufnehmen",
+                  "play the chosen track; C4 is its base note; REC while playing records", "tlhegh QoQ"),
+         "snd": ("Klang p", "sound p", "wab p"),
+         "lvl": ("Pegel", "level", "HoS"), "wheel": ("Mod-Rad", "mod wheel", "MOD"),
+         "bend": ("Pitchbend", "pitch bend", "BEND"), "bendd": ("biegt die gewählte Spur ±2 Halbtöne", "bends the chosen track ±2 semitones", "wab ghIr")}
+    t = lambda k: T[k][i]
+    trk = core["tracks"]
+    rows = [(f"**{t('keys')}**", f"{t('ch')} {val['key_ch'] + 1}", t("play"))]
+    for k in range(8):
+        rows.append((f"**K{k + 1}**", f"CC {kb + k}", f"{t('snd')}{k + 1}: " + " / ".join(x[k] or "–" for x in core["sound"])))
+    for k in range(8):
+        rows.append((f"**K{k + 9}**", f"CC {kb + 8 + k}", nm[k]))
+    for k in range(8):
+        rows.append((f"**F{k + 1}**", f"CC {fb + k}", f"{t('lvl')} {trk[k]}" if k < len(trk) else ("D.RET" if k == 6 else "R.RET")))
+    rows.append((f"**{t('wheel')}**", f"CC 1, {t('ch')} {val['key_ch'] + 1}", "SEKO"))
+    rows.append((f"**{t('bend')}**", f"{t('ch')} {val['key_ch'] + 1}", t("bendd")))
+    pads = [f"{trk[p]}" for p in range(6)] + ["NEW", "MUTATE"] + [f"MUTE {trk[p]}" for p in range(6)] + ["NEW GROOVE", "UNDO"]
+    for p, what in enumerate(pads):
+        rows.append((f"**Pad {p + 1}**", f"{t('note')} {val['pad_note'] + p}, {t('ch')} {val['pad_ch'] + 1}", what))
+    knobs_ch = f"CC: {t('ch')} {val['cc_ch'] + 1}"
+    return f"{knobs_ch}\n\n" + table([t("ctl"), t("msg"), t("does")], rows)
+
+
+GEN = {"smk": gen_smk, "sound": gen_sound, "global": gen_global, "scales": gen_scales, "pages": gen_pages}
 
 
 def fill(md, core, lang):

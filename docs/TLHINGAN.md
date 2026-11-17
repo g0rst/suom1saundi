@@ -2,6 +2,7 @@
 
 nuqneH! M-VAVE FM-1 QoQ jan ngoq 'oH suom1saundi'e'. suomisaundi QoQ DaQoymeH wIghunta'. Suomi QoQ 'oH suomisaundi'e':
 Quch 'ej Huj. jav ghogh ghaj suom1saundi. **SEKO** SeH DajIrmoHchugh, QoQ choH reH.
+cha' mIw: **MINI** (FM-1 nIteb) 'ej **MAXI** (FM-1 SMK-37 je).
 
 > tlhIngan Hol mughlu'pu'; DIvI' Hol pong'e' jIH 'ang, pong rap lo'lu'. *(Fan-Übersetzung: Namen der Regler bleiben, wie
 > das Display sie zeigt.)* reH choHlu' paq'vam: `tools/manual.py` ngoq vo' SeHmey mI'mey je ghItlh.
@@ -66,12 +67,15 @@ SeHmey Dung leQmey: K1 .. K4 Qu' yIwIv. leQ rap cha'logh yIyuv: cha'DIch nav.
 | **HOME** | GROOVE | TEMPO | SWING | SEKO | DUCK |
 | **EDIT** | SOUND | p1 | p2 | p3 | p4 |
 | **EDIT ×2** | SOUND 2 | p5 | p6 | p7 | p8 |
+| **EDIT ×3** | MOD | RATE | SHAPE | DEST | DEPTH |
 | **ENV** | MIX | LEVEL | PAN | DELAY | REVERB |
-| **ENV ×2** | 8-BIT | BITS | RATE |  |  |
+| **ENV ×2** | CHANNEL | TONE | BITS | RATE | DUCK |
+| **ENV ×3** | MASTER | DRIVE | D.RET | R.RET | WIDTH |
 | **FX** | FX | D.TIME | D.FDBK | R.SIZE | R.DAMP |
 | **FX ×2** | SIDECHAIN | SOURCE | DEPTH | RELEASE | AMOUNT |
 | **GLO** | GLOBAL | ROOT | SCALE | CLOCK | CHAIN |
-| **GLO ×2** | GLOBAL 2 | XPOSE | DRIVE |  |  |
+| **GLO ×2** | GLOBAL 2 | XPOSE | CHORD |  |  |
+| **GLO ×3** | SMK-37 | MAXI | KEYS CH | PADS CH | CC CH |
 | **SEQ** | EUCLID | HITS | ROTATE | CHANCE | ACCENT |
 | **SEQ ×2** | LINK | SOURCE | MODE |  |  |
 | **SEQ ×3** | TIMING | STEP n | TRACK |  |  |
@@ -96,7 +100,7 @@ POTKU: psy wab 'ugh
 | EDIT² | K1 | **SNAP** | 40 | pum nom |
 | EDIT² | K2 | **CLICK** | 50 | wab tagh 'och |
 | EDIT² | K3 | **HOLD** | 20 | HoS naQ yI'uch (86 ms) |
-| EDIT² | K4 | (pagh) |  |  |
+| EDIT² | K4 | **BODY** | 10 | wab 'ugh law' |
 
 ### BASSO
 
@@ -125,8 +129,8 @@ HATTU: baS wab
 | EDIT | K4 | **OPEN** | 64 | ACC poSmoH |
 | EDIT² | K1 | **CHIP** | 0 | 8-BIT veQ wab |
 | EDIT² | K2 | **SHAKE** | 0 | QIt tagh |
-| EDIT² | K3 | (pagh) |  |  |
-| EDIT² | K4 | (pagh) |  |  |
+| EDIT² | K3 | **SPREAD** | 20 | poS nIH pIm |
+| EDIT² | K4 | **CUT** | 50 | wab Dung neH |
 
 ### HAPPO
 
@@ -185,9 +189,80 @@ OUTO: wab Huj
 | **OUTO** | 80 | C | 60 | 50 |
 <!-- /GEN:sound -->
 
+### MOD
+
+**EDIT** wejlogh yIyuv: LFO. wab SeH vIHmoH LFO. RATE, SHAPE, DEST, DEPTH.
+
+## QoQ chenmoHwI'
+
+**SEL** pagh **NEW** yIyuv: QoQ chu'. CHORD ghaj Hoch nav (GLO ×2). BASSO HAPPO PIIP OUTO je: CHORD rap lo'.
+Qochbe' Hoch tlhegh. A B C D: CHORD tlhegh. **CHAIN** yIchu'!
+
 ## SEKO
 
 SEKO 0: QoQ rap reH. SEKO Dun: Steps pIm, wab ghIr, SLIDE, cha' Steps. POTKU choHbe' reH.
+
+## wab ghom SeH
+
+**ENV** yIyuv: Hoch tlhegh 'ang jIH. **ENV ×2**: TONE, BITS, RATE, DUCK. **ENV ×3**: DRIVE, D.RET, R.RET, WIDTH.
+
+## MINI 'ej MAXI
+
+- MINI: FM-1 nIteb.
+- MAXI: FM-1 SMK-37 je. SMK-37 leQmey, PADS, SeHmey: FM-1 SeH.
+- MIDI tlhegh yIlo' (3,5 mm). Bluetooth wIlo'be': FM-1 qawHaq mach.
+- **GLO** wejlogh yIyuv, **SEL** yIyuv: ghoj FM-1. **ARP**: wa'DIch SeHmey.
+
+<!-- GEN:smk -->
+<!-- (written by tools/manual.py from the code: do not edit by hand) -->
+CC: CH 1
+
+| SeH | MIDI | Qu' |
+|---|---|---|
+| **leQmey** | CH 1 | tlhegh QoQ |
+| **K1** | CC 20 | wab p1: TUNE / CUTOFF / DECAY / CUTOFF / WAVE / DECAY |
+| **K2** | CC 21 | wab p2: DECAY / RESO / TONE / RESO / DECAY / FM |
+| **K3** | CC 22 | wab p3: SWEEP / ENVMOD / METAL / ENVMOD / ARP / RATIO |
+| **K4** | CC 23 | wab p4: DRIVE / DECAY / OPEN / DECAY / VIBRATO / ZAP |
+| **K5** | CC 24 | wab p5: SNAP / WAVE / CHIP / WAVE / SPEED / ZTIME |
+| **K6** | CC 25 | wab p6: CLICK / SUB / SHAKE / ACCENT / PWM / FEEDBK |
+| **K7** | CC 26 | wab p7: HOLD / GLIDE / SPREAD / GLIDE / BEND / WOBBLE |
+| **K8** | CC 27 | wab p8: BODY / DRIVE / CUT / DRIVE / DETUNE / RANDOM |
+| **K9** | CC 28 | LFO RATE |
+| **K10** | CC 29 | LFO SHAPE |
+| **K11** | CC 30 | LFO DEST |
+| **K12** | CC 31 | LFO DEPTH |
+| **K13** | CC 32 | TONE |
+| **K14** | CC 33 | BITS |
+| **K15** | CC 34 | RATE |
+| **K16** | CC 35 | DUCK |
+| **F1** | CC 41 | HoS POTKU |
+| **F2** | CC 42 | HoS BASSO |
+| **F3** | CC 43 | HoS HATTU |
+| **F4** | CC 44 | HoS HAPPO |
+| **F5** | CC 45 | HoS PIIP |
+| **F6** | CC 46 | HoS OUTO |
+| **F7** | CC 47 | D.RET |
+| **F8** | CC 48 | R.RET |
+| **MOD** | CC 1, CH 1 | SEKO |
+| **BEND** | CH 1 | wab ghIr |
+| **Pad 1** | NOTE 36, CH 10 | POTKU |
+| **Pad 2** | NOTE 37, CH 10 | BASSO |
+| **Pad 3** | NOTE 38, CH 10 | HATTU |
+| **Pad 4** | NOTE 39, CH 10 | HAPPO |
+| **Pad 5** | NOTE 40, CH 10 | PIIP |
+| **Pad 6** | NOTE 41, CH 10 | OUTO |
+| **Pad 7** | NOTE 42, CH 10 | NEW |
+| **Pad 8** | NOTE 43, CH 10 | MUTATE |
+| **Pad 9** | NOTE 44, CH 10 | MUTE POTKU |
+| **Pad 10** | NOTE 45, CH 10 | MUTE BASSO |
+| **Pad 11** | NOTE 46, CH 10 | MUTE HATTU |
+| **Pad 12** | NOTE 47, CH 10 | MUTE HAPPO |
+| **Pad 13** | NOTE 48, CH 10 | MUTE PIIP |
+| **Pad 14** | NOTE 49, CH 10 | MUTE OUTO |
+| **Pad 15** | NOTE 50, CH 10 | NEW GROOVE |
+| **Pad 16** | NOTE 51, CH 10 | UNDO |
+<!-- /GEN:smk -->
 
 ## 8-BIT
 
@@ -206,7 +281,10 @@ SEKO 0: QoQ rap reH. SEKO Dun: Steps pIm, wab ghIr, SLIDE, cha' Steps. POTKU cho
 | **ROOT** | GLO | F#1 | 24 … 47 | wab wa'DIch |
 | **SCALE** | GLO | PHRDOM | 0 … 127 | wab ghom |
 | **CLOCK** | GLO | ON | 0 … 1 | MIDI CLOCK |
-| **DRIVE** | GLO² | 30 | 0 … 127 | Hoch HoS |
+| **DRIVE** | ENV³ | 30 | 0 … 127 | Hoch HoS |
+| **D.RET** | ENV³ | 0 | 0 … 127 | DELAY chegh |
+| **R.RET** | ENV³ | 100 | 0 … 127 | REVERB chegh |
+| **WIDTH** | ENV³ | 64 | 0 … 127 | poS nIH tIn |
 | **D.TIME** | FX | 3/16 | 0 … 2 | DELAY poH |
 | **D.FDBK** | FX | 60 | 0 … 127 | DELAY HoS |
 | **R.SIZE** | FX | 60 | 0 … 127 | REVERB tIn |
@@ -249,11 +327,12 @@ python3 tools/manual.py
 
 <!-- GEN:version -->
 <!-- (written by tools/manual.py from the code: do not edit by hand) -->
-DaH mI': **0.1**
+DaH mI': **0.2**
 
 | mI' | jaj | choH |
 |---|---|---|
 | **0.1** | 2026-11-17 | wa'DIch: jav ghogh, SLIDE SEKO je, 8-BIT, EMULATOR, wej Hol lo'meH paq |
+| **0.2** | 2026-11-17 | CHORD chu', wab ghom SeH chu', LFO, MAXI: SMK-37, EMULATOR SMK-37, ngoq mach |
 <!-- /GEN:version -->
 
 Qapla'!

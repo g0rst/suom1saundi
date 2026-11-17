@@ -28,6 +28,10 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
         uint32_t st = (pkt >> 8) & 0xFFu, d1 = (pkt >> 16) & 0x7Fu, d2 = (pkt >> 24) & 0x7Fu;
         if ((st & 0xF0u) == 0x90u && d2)
             ss_midi_note(st & 15u, d1, d2);
+        else if ((st & 0xF0u) == 0xB0u)  /* MAXI: the SMK-37's knobs, faders and mod wheel (TRS jack or USB) */
+            ss_midi_cc(st & 15u, d1, d2);
+        else if ((st & 0xF0u) == 0xE0u)
+            ss_midi_bend(st & 15u, (int)(d2 << 7 | d1) - 8192);
         else if (st == 0xFAu)
             ss_midi_transport(1);
         else if (st == 0xFCu)

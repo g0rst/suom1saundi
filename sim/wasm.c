@@ -60,3 +60,17 @@ uint32_t EXPORT(sim_frame)(uint32_t buttons, uint32_t keys, int32_t e0, int32_t 
 uint32_t EXPORT(sim_save)(void) { return ss_save_wanted() ? ss_project_get(prj, sizeof prj) : 0; }
 int EXPORT(sim_load)(uint32_t len) { return ss_project_set(prj, len); }
 int EXPORT(sim_state)(int what) { return ss_state(what); }
+/* MIDI from the page (the virtual SMK-37, or a real one through Web MIDI): one message of up to three bytes */
+void EXPORT(sim_midi)(uint32_t st, uint32_t d1, uint32_t d2)
+{
+    if ((st & 0xF0u) == 0x90u && d2)
+        ss_midi_note(st & 15u, d1, d2);
+    else if ((st & 0xF0u) == 0xB0u)
+        ss_midi_cc(st & 15u, d1, d2);
+    else if ((st & 0xF0u) == 0xE0u)
+        ss_midi_bend(st & 15u, (int)(d2 << 7 | d1) - 8192);
+    else if (st == 0xFAu)
+        ss_midi_transport(1);
+    else if (st == 0xFCu)
+        ss_midi_transport(0);
+}

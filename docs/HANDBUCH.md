@@ -6,15 +6,21 @@ Bässen, zwitschernden Acid-Linien, Chiptune-Melodien und Geräuschen, die niema
 Stimmen gebaut, und ein Regler namens **SEKO** (finnisch für „verrückt“) sorgt dafür, dass kein Takt genau wie der
 letzte klingt.
 
-> Dieses Handbuch aktualisiert sich selbst: Die Tabellen mit Reglern, Werkswerten, Seiten, Skalen und Versionen
-> schreibt `tools/manual.py` bei jedem Push direkt aus dem Code der Firmware.
+Es gibt zwei Arten, suom1saundi zu spielen: **MINI**, der FM-1 allein, und **MAXI**, der FM-1 mit einem
+**M-VAVE SMK-37** (Pro oder Elite) als Steuerzentrale mit Tasten, 16 Pads, 8 Endlos-Knobs und Fadern.
+
+> Dieses Handbuch aktualisiert sich selbst: Die Tabellen mit Reglern, Werkswerten, Seiten, Skalen, der
+> SMK-37-Belegung und den Versionen schreibt `tools/manual.py` bei jedem Push direkt aus dem Code der Firmware.
 
 ## Stand und Warnung
 
 - Der Kern (`app/core/suomi.c`) läuft in den Host-Tests, im Simulator von fm1-base und im Browser-Emulator.
 - Ein `.fwsc`-Paket für das Gerät braucht JieLis Toolchain und das AC79-SDK und wurde **noch nicht gebaut**.
-- Auf einem echten FM-1 ist die Firmware **noch nicht getestet**. Custom-Firmware kann ein Gerät unbrauchbar machen.
-  Vorher auf die offizielle V15 gehen, Daten sichern und wissen, wie man zurückkommt (Installer von fm1-base).
+- Auf einem echten FM-1 ist die Firmware **noch nicht getestet**, mit einem echten SMK-37 auch nicht. Custom-Firmware
+  kann ein Gerät unbrauchbar machen. Vorher auf die offizielle V15 gehen, Daten sichern und wissen, wie man
+  zurückkommt (Installer von fm1-base).
+- Projekte aus Version 0.1 werden nicht geladen (das Speicherformat hat sich geändert); der FM-1 startet dann mit
+  einem frischen Groove.
 
 ## Ausprobieren ohne Gerät
 
@@ -22,15 +28,21 @@ Der [Emulator](emulator.html) läuft im Browser mit genau demselben C-Kern wie d
 Bedienelemente sitzen wie am FM-1. Erst **Ton einschalten**, dann **PLAY**. Die Leertaste ist PLAY. Gespeichert wird
 im Browser.
 
+Unter dem FM-1 liegt ein **virtuelles SMK-37** mit Knobs, Fadern, Pads, Mod-Rad und zwei Oktaven Tasten (am
+Computer auch A W S E D F T G Y H U J K). Es sendet die Werks-Belegung. Ein echtes SMK-37 (oder ein anderer
+Controller) am Computer spielt den Emulator über **Web MIDI** (Chrome oder Edge).
+
 ## Schnellstart
 
 1. **PLAY** drücken: ab Werk läuft ein generierter Groove in Fis phrygisch-dominant bei 145 BPM.
 2. Eine der ersten sechs **schwarzen Tasten** wählt eine Spur. Die 16 **weißen Tasten** sind ihre Steps.
 3. **SEL** würfelt die gewählte Spur neu, **ARP** verändert sie nur ein bisschen, die schwarze Taste **NEW** würfelt
-   den ganzen Groove neu, **UNDO** holt den vorherigen zurück.
+   den ganzen Groove neu, mit neuem Akkord. **UNDO** holt den vorherigen zurück.
 4. **HOME** und **KNOB3** (SEKO) aufdrehen: Der Groove fängt an zu improvisieren.
 5. **EDIT** und an den vier Knobs drehen: der Klang der Spur. Nochmal **EDIT**: die anderen vier Klangregler.
-6. **SAVE** kurz drücken speichert alles.
+   Ein drittes Mal: der LFO der Spur.
+6. **ENV**: der Mixer mit allen sechs Spuren.
+7. **SAVE** kurz drücken speichert alles.
 
 ## Die sechs Spuren
 
@@ -60,8 +72,8 @@ im Browser.
 | **SELECT**, **OCT− / OCT+** | Spur wählen |
 | **ALGORITHM** | Looplänge der Spur, 1 bis 16 Steps |
 | **PRESETS** | Pattern A bis D; beim Spielen ab dem nächsten Takt |
-| **SEL** | Spur neu würfeln |
-| **ARP** | Spur ein bisschen verändern (Mutate) |
+| **SEL** | Spur neu würfeln (auf der Seite SMK-37: Belegung lernen) |
+| **ARP** | Spur ein bisschen verändern (auf der Seite SMK-37: Werks-Belegung) |
 | **LFO** | kurz: Spur stumm; gehalten: Solo |
 | **REC** | Tasten spielen die Spur chromatisch; bei laufendem Groove wird aufgenommen |
 | **SAVE** | kurz: speichern; halten + PRESETS: Pattern kopieren; halten + SELECT: Spur kopieren |
@@ -69,8 +81,8 @@ im Browser.
 
 ## Seiten
 
-Die Tasten über den Knobs wählen, was **KNOB1** bis **KNOB4** tun. Ein zweiter Druck auf dieselbe Taste öffnet ihre
-zweite Seite. Die Seite steht unten im Display.
+Die Tasten über den Knobs wählen, was **KNOB1** bis **KNOB4** tun. Jeder weitere Druck auf dieselbe Taste öffnet
+ihre nächste Seite. Die Seite steht unten im Display.
 
 <!-- GEN:pages -->
 <!-- (written by tools/manual.py from the code: do not edit by hand) -->
@@ -79,12 +91,15 @@ zweite Seite. Die Seite steht unten im Display.
 | **HOME** | GROOVE | TEMPO | SWING | SEKO | DUCK |
 | **EDIT** | SOUND | p1 | p2 | p3 | p4 |
 | **EDIT ×2** | SOUND 2 | p5 | p6 | p7 | p8 |
+| **EDIT ×3** | MOD | RATE | SHAPE | DEST | DEPTH |
 | **ENV** | MIX | LEVEL | PAN | DELAY | REVERB |
-| **ENV ×2** | 8-BIT | BITS | RATE |  |  |
+| **ENV ×2** | CHANNEL | TONE | BITS | RATE | DUCK |
+| **ENV ×3** | MASTER | DRIVE | D.RET | R.RET | WIDTH |
 | **FX** | FX | D.TIME | D.FDBK | R.SIZE | R.DAMP |
 | **FX ×2** | SIDECHAIN | SOURCE | DEPTH | RELEASE | AMOUNT |
 | **GLO** | GLOBAL | ROOT | SCALE | CLOCK | CHAIN |
-| **GLO ×2** | GLOBAL 2 | XPOSE | DRIVE |  |  |
+| **GLO ×2** | GLOBAL 2 | XPOSE | CHORD |  |  |
+| **GLO ×3** | SMK-37 | MAXI | KEYS CH | PADS CH | CC CH |
 | **SEQ** | EUCLID | HITS | ROTATE | CHANCE | ACCENT |
 | **SEQ ×2** | LINK | SOURCE | MODE |  |  |
 | **SEQ ×3** | TIMING | STEP n | TRACK |  |  |
@@ -95,7 +110,7 @@ p1 bis p8 sind die acht Klangregler der gewählten Spur (siehe unten).
 ## Klänge
 
 Jede Spur hat acht Klangregler: vier auf **EDIT**, vier auf **EDIT²** (EDIT zweimal drücken). Werkswerte gehen von
-0 bis 127.
+0 bis 127. Im MAXI-Modus liegen alle acht zugleich auf K1 bis K8 des SMK-37, und das Display zeigt alle acht.
 
 <!-- GEN:sound -->
 <!-- (written by tools/manual.py from the code: do not edit by hand) -->
@@ -112,7 +127,7 @@ Psy-Kick: Sinus mit tiefem, schnellem Pitch-Sweep, Klick, Soft-Clipper
 | EDIT² | K1 | **SNAP** | 40 | wie schnell der Sweep fällt |
 | EDIT² | K2 | **CLICK** | 50 | Klick am Anfang |
 | EDIT² | K3 | **HOLD** | 20 | volle Lautstärke halten, bevor sie fällt (bis 86 ms) |
-| EDIT² | K4 | (frei) |  |  |
+| EDIT² | K4 | **BODY** | 10 | zweite Harmonische: voller, kastiger |
 
 ### BASSO
 
@@ -141,8 +156,8 @@ Hats und Shaker: FM-Metall, Rauschen und ein 8-Bit-Rauschkanal
 | EDIT | K4 | **OPEN** | 64 | wie weit ein Akzent die Hat öffnet |
 | EDIT² | K1 | **CHIP** | 0 | Mischung mit dem 8-Bit-Rauschkanal (LFSR) |
 | EDIT² | K2 | **SHAKE** | 0 | weicher Anstieg: Shaker statt Hat |
-| EDIT² | K3 | (frei) |  |  |
-| EDIT² | K4 | (frei) |  |  |
+| EDIT² | K3 | **SPREAD** | 20 | jeder Schlag woanders im Stereobild |
+| EDIT² | K4 | **CUT** | 50 | Hochpass: höher ist dünner |
 
 ### HAPPO
 
@@ -201,6 +216,36 @@ Acid-Linie im Stil der 303: Säge/Rechteck, 18-dB-Resonanzfilter, Akzent, Slide
 | **OUTO** | 80 | C | 60 | 50 |
 <!-- /GEN:sound -->
 
+### MOD: der LFO jeder Spur
+
+**EDIT ×3** öffnet den LFO der gewählten Spur. Er läuft im Takt des Grooves und bewegt einen Klangregler, Schlag für
+Schlag: eine Acid-Linie, deren Filter sich über zwei Takte öffnet, eine Kick, die jeden zweiten Takt härter wird,
+Zaps, die immer weiter zerfasern.
+
+- **RATE**: eine Schwingung pro 1/16, 1/8, 3/16, 1/4, 3/8, 1/2, 3/4, 1, 2 oder 4 Takte
+- **SHAPE**: SIN, TRI, SAW (fallend), SQR, RND (jede Schwingung ein neuer Zufallswert)
+- **DEST**: welcher der acht Klangregler
+- **DEPTH**: 0 in der Mitte; nach rechts mehr, nach links umgekehrt
+
+## Der Generator
+
+**SEL** (eine Spur) und **NEW** (der ganze Groove) setzen nicht nur Schläge, sondern spielen zusammenpassende
+Tonfolgen:
+
+- Jedes Pattern hat einen **Akkord** (GLO ×2, CHORD: eine Stufe der Skala, I bis VII). BASSO, HAPPO, PIIP und OUTO
+  bauen ihre Töne aus diesem Akkord und der Skala, deshalb passen sie zusammen.
+- **BASSO** galoppiert auf dem Grundton des Akkords, springt in die Oktave, zur Quinte und manchmal auf den Ton
+  darunter; jede dritte Linie endet auf der Quinte.
+- **HAPPO** spielt ein Motiv aus acht Tönen über einer Rhythmuszelle: Pedaltöne mit Sprüngen, Akkordbrechungen,
+  Läufe durch die Skala, das phrygische Quietschen. Beim zweiten Durchgang rückt die zweite Hälfte manchmal eine Terz
+  höher. Große Sprünge gleiten (Slide), Oktavsprünge bekommen Akzente.
+- **PIIP** spielt Frage und Antwort: acht Töne, die zum Grundton zurückkehren. Wo HAPPO spielt, lässt PIIP oft eine
+  Lücke, so antworten sich die beiden.
+- **OUTO** wirft seine Zaps auf Akkordtöne, eine Oktave höher oder tiefer.
+- Die Patterns A bis D sind ab Werk eine **Akkordfolge** (etwa I – VI – VII – I). Mit **CHAIN** (GLO) wandert der
+  Groove durch sie. **NEW** wählt für das Pattern einen neuen Akkord.
+- **ARP** (Mutate) setzt geänderte Noten ebenfalls auf Akkordtöne.
+
 ## Der Sequencer
 
 - **Polymetrie:** Jede Spur hat ihre eigene Looplänge (ALGORITHM). HAPPO auf 14 gegen die 16 der Kick wiederholt sich
@@ -221,11 +266,29 @@ Acid-Linie im Stil der 303: Säge/Rechteck, 18-dB-Resonanzfilter, Akzent, Slide
 SEKO auf der Seite HOME ist der Suomisaundi-Regler. Bei 0 spielt der Sequencer genau, was programmiert ist. Je weiter
 er aufgedreht ist, desto öfter spielt ein Step **etwas anderes**: eine Stufe der Skala höher oder tiefer, eine Oktave
 daneben, mit Slide oder als Doppelschlag; Hats verdoppeln sich oder wechseln den Akzent. Dazu wandern Filter und
-Ausklang langsam, und die Lautstärke schwankt leicht. Die Kick bleibt immer, wo sie ist.
+Ausklang langsam, und die Lautstärke schwankt leicht. Die Kick bleibt immer, wo sie ist. Im MAXI-Modus liegt SEKO auf
+dem Mod-Rad des SMK-37.
+
+## Der Mixer
+
+**ENV** öffnet den Mixer. Statt der Steps zeigt das Display dann alle sechs Spuren als Kanalzüge: Pegelanzeige,
+Fader, die Anteile an Delay und Hall, das Panorama, M für stumm und S für Solo. Die Knobs gelten für die gewählte Spur
+(Spur wählen wie immer: schwarze Tasten, SELECT, OCT).
+
+- **MIX** (ENV): LEVEL, PAN, DELAY, REVERB.
+- **CHANNEL** (ENV ×2): **TONE**, ein sanfter Filter pro Kanal (FLAT in der Mitte, nach links Tiefpass, nach rechts
+  Hochpass), **BITS** und **RATE** (der 8-Bit-Crusher) und **DUCK**, wie stark die Spur vor der Kick zurückweicht.
+  Der Kanalzug zeigt LP, HP und 8 an.
+- **MASTER** (ENV ×3): **DRIVE** sättigt die Summe, **D.RET** und **R.RET** sind die Rückwege von Delay und Hall,
+  **WIDTH** die Stereobreite (0 mono, 64 normal, 127 breit). Rechts am Rand zeigt das Display die Summe links und
+  rechts.
+- **FX** und **FX ×2** stellen Delay, Hall und Sidechain ein.
+- Im MAXI-Modus sind die Fader des SMK-37 der Mixer: F1 bis F6 die Pegel der Spuren, F7 und F8 die Rückwege von
+  Delay und Hall.
 
 ## 8-Bit
 
-ENV zweimal öffnet die Seite **8-BIT** der gewählten Spur:
+ENV zweimal öffnet die Seite **CHANNEL** der gewählten Spur:
 
 - **BITS** rundet das Signal auf immer weniger Stufen (OFF, dann gröber bis 127).
 - **RATE** hält jeden Wert mehrere Samples lang: die Abtastrate sinkt, der Klang wird metallisch und aliasing-reich.
@@ -235,18 +298,107 @@ wie im Soundchip) schon von sich aus nach 8 Bit. Die Idee dafür kommt aus memet
 
 ## Effekte und Sidechain
 
-- **ENV**: Pegel, Panorama und Anteil an Delay und Hall pro Spur.
 - **FX**: Delay-Zeit (1/16, 1/8, 3/16; rechts zwei Drittel davon), Feedback, Hallgröße, Dämpfung.
 - **FX ×2** (SIDECHAIN): Quelle (ab Werk POTKU), Tiefe, Release und wie stark die gewählte Spur geduckt wird. Eine
   stumme Quelle duckt weiter (Ghost-Kick).
-- **GLO ×2**: DRIVE sättigt die Summe, XPOSE transponiert das Pattern.
+
+## MINI und MAXI
+
+**MINI** ist der FM-1 allein: alles geht über seine 4 Knobs, Seiten und Tasten, wie oben beschrieben.
+
+**MAXI** ist der FM-1 mit einem M-VAVE SMK-37 (Pro oder Elite). Das SMK-37 wird zur Steuerzentrale: Seine Tasten
+spielen die gewählte Spur, die Pads spielen die Drums und schalten Spuren, die 8 Knobs (mit KNOB BANK 16) liegen auf
+den Klangreglern, die Fader sind der Mixer. Sobald der FM-1 eine Nachricht des SMK-37 bekommt, schaltet er auf MAXI:
+Unter dem Logo erscheint ein grüner Strich, und auf den Seiten EDIT und EDIT² zeigt das Display alle acht Klangregler
+zugleich; der zuletzt am SMK-37 gedrehte leuchtet.
+
+### Verbinden
+
+- **Kabel (empfohlen):** der 3,5-mm-MIDI-Ausgang des SMK-37 an die MIDI-Buchse des FM-1 (über die passenden
+  Adapter). Dafür braucht die Firmware keinen zusätzlichen Code.
+- **Über einen Computer:** SMK-37 und FM-1 per USB am Computer, MIDI vom SMK-37 zum FM-1 weiterleiten.
+- Bluetooth ist absichtlich nicht eingebaut: Ein Bluetooth-Stack belegt einen großen Teil von Flash und RAM des FM-1.
+
+### Belegung
+
+Ab Werk erwartet der FM-1 die Belegung unten. Am einfachsten stellt man das SMK-37 in **MIDI SUITE** (M-VAVEs
+Editor) genauso ein. Oder der FM-1 lernt die Belegung, die das SMK-37 gerade sendet:
+
+1. **GLO** dreimal drücken: Seite **SMK-37**.
+2. **SEL**: Das Display führt durch das Lernen. Eine Taste spielen (das C, das die Grundnote sein soll), Pad 1
+   schlagen, dann K1 bis K16 nacheinander drehen und F1 bis F8 bewegen (für K9 bis K16 und F5 bis F8 vorher die
+   BANK-Taste am SMK-37 drücken).
+3. **SEL** überspringt einen Regler, **SAVE** beendet das Lernen (der Rest bleibt frei), **HOME** bricht ab.
+
+Endlos-Knobs, die Schritte senden statt Positionen, erkennt der FM-1 beim Lernen selbst. **ARP** auf der Seite SMK-37
+stellt die Werks-Belegung wieder her. Mit K1 auf dieser Seite schaltet man MAXI aus; K2 bis K4 stellen die Kanäle von
+Tasten, Pads und Reglern von Hand ein.
+
+<!-- GEN:smk -->
+<!-- (written by tools/manual.py from the code: do not edit by hand) -->
+CC: Kanal 1
+
+| Bedienelement | MIDI (Werk) | Funktion auf dem FM-1 |
+|---|---|---|
+| **Tasten** | Kanal 1 | spielen die gewählte Spur; C4 ist ihre Grundnote; mit REC und PLAY aufnehmen |
+| **K1** | CC 20 | Klang p1: TUNE / CUTOFF / DECAY / CUTOFF / WAVE / DECAY |
+| **K2** | CC 21 | Klang p2: DECAY / RESO / TONE / RESO / DECAY / FM |
+| **K3** | CC 22 | Klang p3: SWEEP / ENVMOD / METAL / ENVMOD / ARP / RATIO |
+| **K4** | CC 23 | Klang p4: DRIVE / DECAY / OPEN / DECAY / VIBRATO / ZAP |
+| **K5** | CC 24 | Klang p5: SNAP / WAVE / CHIP / WAVE / SPEED / ZTIME |
+| **K6** | CC 25 | Klang p6: CLICK / SUB / SHAKE / ACCENT / PWM / FEEDBK |
+| **K7** | CC 26 | Klang p7: HOLD / GLIDE / SPREAD / GLIDE / BEND / WOBBLE |
+| **K8** | CC 27 | Klang p8: BODY / DRIVE / CUT / DRIVE / DETUNE / RANDOM |
+| **K9** | CC 28 | LFO RATE |
+| **K10** | CC 29 | LFO SHAPE |
+| **K11** | CC 30 | LFO DEST |
+| **K12** | CC 31 | LFO DEPTH |
+| **K13** | CC 32 | TONE |
+| **K14** | CC 33 | BITS |
+| **K15** | CC 34 | RATE |
+| **K16** | CC 35 | DUCK |
+| **F1** | CC 41 | Pegel POTKU |
+| **F2** | CC 42 | Pegel BASSO |
+| **F3** | CC 43 | Pegel HATTU |
+| **F4** | CC 44 | Pegel HAPPO |
+| **F5** | CC 45 | Pegel PIIP |
+| **F6** | CC 46 | Pegel OUTO |
+| **F7** | CC 47 | D.RET |
+| **F8** | CC 48 | R.RET |
+| **Mod-Rad** | CC 1, Kanal 1 | SEKO |
+| **Pitchbend** | Kanal 1 | biegt die gewählte Spur ±2 Halbtöne |
+| **Pad 1** | Note 36, Kanal 10 | POTKU |
+| **Pad 2** | Note 37, Kanal 10 | BASSO |
+| **Pad 3** | Note 38, Kanal 10 | HATTU |
+| **Pad 4** | Note 39, Kanal 10 | HAPPO |
+| **Pad 5** | Note 40, Kanal 10 | PIIP |
+| **Pad 6** | Note 41, Kanal 10 | OUTO |
+| **Pad 7** | Note 42, Kanal 10 | NEW |
+| **Pad 8** | Note 43, Kanal 10 | MUTATE |
+| **Pad 9** | Note 44, Kanal 10 | MUTE POTKU |
+| **Pad 10** | Note 45, Kanal 10 | MUTE BASSO |
+| **Pad 11** | Note 46, Kanal 10 | MUTE HATTU |
+| **Pad 12** | Note 47, Kanal 10 | MUTE HAPPO |
+| **Pad 13** | Note 48, Kanal 10 | MUTE PIIP |
+| **Pad 14** | Note 49, Kanal 10 | MUTE OUTO |
+| **Pad 15** | Note 50, Kanal 10 | NEW GROOVE |
+| **Pad 16** | Note 51, Kanal 10 | UNDO |
+<!-- /GEN:smk -->
+
+K1 bis K4 schreiben Parameter-Locks, solange am FM-1 eine weiße Taste gehalten wird. Die Pads 1 bis 6 klingen sofort
+mit Anschlag; mit **REC** und laufendem Groove werden sie, wie die Tasten, in den Step geschrieben, auf den sie fallen.
+
+### Was das SMK-37 übernimmt
+
+Arpeggiator, Akkord-Modus, Skalen-Korrektur und Note Repeat hat das SMK-37 selbst. suom1saundi baut sie deshalb nicht
+nach: Was das SMK-37 daraus spielt, kommt als Noten an, klingt auf der gewählten Spur und wird mit REC aufgenommen.
 
 ## Patterns, Chain und Tonart
 
 Vier Patterns A bis D. **PRESETS** wechselt sie, beim Spielen zum nächsten Takt. **CHAIN** (GLO) spielt A-B, A-C oder
-A-D reihum, je vier Takte. Ab Werk sind C und D um +3 und −2 Halbtöne transponiert (XPOSE), so wechselt die Kette die
-Tonart. SAVE halten und PRESETS drehen kopiert das ganze Pattern, SAVE halten und SELECT drehen nur die Spur;
-loslassen kopiert, UNDO im Ziel macht es rückgängig.
+A-D reihum, je vier Takte. Jedes Pattern hat seinen Akkord (GLO ×2, CHORD) und kann mit **XPOSE** transponiert werden.
+SAVE halten und PRESETS drehen kopiert das ganze Pattern, SAVE halten und SELECT drehen nur die Spur; loslassen
+kopiert, UNDO im Ziel macht es rückgängig.
 
 ## Globale Werte
 
@@ -261,7 +413,10 @@ loslassen kopiert, UNDO im Ziel macht es rückgängig.
 | **ROOT** | GLO | F#1 | 24 … 47 | Grundton (MIDI-Note) |
 | **SCALE** | GLO | PHRDOM | 0 … 127 | Skala (siehe unten) |
 | **CLOCK** | GLO | ON | 0 … 1 | MIDI-Clock senden |
-| **DRIVE** | GLO² | 30 | 0 … 127 | Sättigung der Summe |
+| **DRIVE** | ENV³ | 30 | 0 … 127 | Sättigung der Summe |
+| **D.RET** | ENV³ | 0 | 0 … 127 | Rückweg des Delays in die Summe |
+| **R.RET** | ENV³ | 100 | 0 … 127 | Rückweg des Halls |
+| **WIDTH** | ENV³ | 64 | 0 … 127 | Stereobreite: 0 mono, 64 normal, 127 breit |
 | **D.TIME** | FX | 3/16 | 0 … 2 | Delay-Zeit 1/16, 1/8, 3/16 |
 | **D.FDBK** | FX | 60 | 0 … 127 | Delay-Feedback |
 | **R.SIZE** | FX | 60 | 0 … 127 | Hallgröße |
@@ -289,9 +444,22 @@ Der Generator, SEKO und die Noten der Spuren folgen der Skala auf GLO.
 
 ## MIDI
 
-- **In:** Kanäle 1 bis 6 spielen die Spuren (Note 60 = Grundnote des Steps). Kanal 10: 36 POTKU, 37–39 OUTO, 42 und 44
-  HATTU, 46 HATTU offen. MIDI-Start und -Stopp starten und stoppen den Groove.
+- **In** (TRS-Buchse und USB): Mit MAXI an spielen die Noten auf dem Tasten-Kanal (ab Werk 1) die gewählte Spur und
+  die Pad-Noten (ab Werk Kanal 10, 36 bis 51) die Pads; CCs und Pitchbend wie in der Belegung oben. Ohne MAXI und auf
+  den übrigen Kanälen: Kanäle 1 bis 6 spielen die Spuren (Note 60 = Grundnote des Steps), Kanal 10: 36 POTKU, 37–39
+  OUTO, 42 und 44 HATTU, 46 HATTU offen. MIDI-Start und -Stopp starten und stoppen den Groove.
 - **Out:** MIDI-Clock, Start und Stopp über USB, wenn CLOCK auf GLO an ist.
+
+## Platz auf dem Chip
+
+Der FM-1 hat wenig Flash und RAM. suom1saundi geht deshalb sparsam damit um:
+
+- Nur das, was in der Audio-Schleife läuft (Stimmen, Sequencer, Effekte), wird auf Geschwindigkeit übersetzt. Alles
+  andere (Generator, Display, Bedienung, Speichern) wird auf Größe übersetzt. Der Code ist so trotz Mixer, LFOs und
+  MAXI kleiner als in Version 0.1.
+- Ein Step belegt 7 statt 8 Byte; ein Projekt mit vier Patterns ist dadurch kleiner geworden.
+- MAXI braucht keinen eigenen Treiber: Das SMK-37 spricht über die MIDI-Buchse, die der FM-1 ohnehin hat, und bringt
+  Arpeggiator, Akkorde und Skalen selbst mit.
 
 ## Firmware bauen
 
@@ -316,9 +484,10 @@ steht unter MIT. Nicht mit M-VAVE verbunden.
 
 <!-- GEN:version -->
 <!-- (written by tools/manual.py from the code: do not edit by hand) -->
-Aktuelle Version: **0.1**
+Aktuelle Version: **0.2**
 
 | Version | Datum | Änderungen |
 |---|---|---|
 | **0.1** | 2026-11-17 | Erste Version: sechs Stimmen, Sequencer mit Slides und SEKO, 8-Bit-Crusher, Browser-Emulator, Handbuch in drei Sprachen |
+| **0.2** | 2026-11-17 | Generator mit Akkorden und Motiven, neuer Mixer (Kanalzüge, TONE, Master), LFO pro Spur, BODY/SPREAD/CUT, MAXI-Modus mit dem SMK-37 (Belegung, Lernen, Pads, Fader), virtuelles SMK-37 und Web MIDI im Emulator, kleinerer Code |
 <!-- /GEN:version -->

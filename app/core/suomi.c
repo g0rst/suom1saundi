@@ -90,7 +90,7 @@ typedef struct { float gl, gr, sd, sr; } bus_t;
 /* BASSO and HAPPO: one oscillator (saw to square, band-limited) into a resonant low-pass whose cutoff an envelope
  * moves; an accent opens it further, a slide glides to the note without a new attack */
 typedef struct {
-    float ph, sph, f, ft, gc, amp, ac, att, fenv, fc16, cut, emod, k, wave, sub, drive, norm, vel;
+    float ph, sph, f, ft, gc, amp, ac, att, fenv, fc16, cut, emod, k, wave, sub, drive, norm, vel, bend;
     float a1, a2, a3, g1, ic1, ic2, lp;
     uint32_t ctl;
 } acid_t;
@@ -118,13 +118,21 @@ static struct {
     volatile uint8_t rt_w, rt_r;
     volatile uint8_t flash[SS_TRACKS];  /* a trigger happened: the screen shows it */
     bus_t bus[SS_TRACKS];
-    struct { float ph, amp, ac, penv, pc, f0, pd, drive, norm, vel, click_g; int32_t click, hold; } kick;
+    struct { float ph, amp, ac, penv, pc, f0, pd, drive, norm, vel, click_g, body; int32_t click, hold; } kick;
     acid_t basso, happo;
-    struct { float ph, mph, ph2, mph2, f, amp, ac, metal, lp, vel, chip, cph, nz, att, atc; uint32_t lfsr; } hat;
+    struct { float ph, mph, ph2, mph2, f, amp, ac, metal, lp, vel, chip, cph, nz, att, atc, pan, cut; uint32_t lfsr; } hat;
     struct { float ph, ph2, nph, f, ft, gc, amp, ac, att, vph, vinc, vdep, pwm, bend, benv, bc, det, vel, nz, mul[3];
              int32_t arp_n, arp_i, arp_cnt, arp_len; uint32_t lfsr; uint8_t wave; } piip;
     struct { float ph, mph, f, amp, ac, att, ienv, ic, idx, ratio, zap, zenv, zc, fb, last, wph, winc, wdep, pan, vel; } outo;
     struct { float held; uint32_t n, cnt; float q; } crush[SS_TRACKS];
+    float tone_z[SS_TRACKS], tone_c[SS_TRACKS];   /* the channel's one-pole filter */
+    uint8_t tone_hp[SS_TRACKS];         /* 0 off, 1 low-pass, 2 high-pass */
+    float bendf[SS_TRACKS];             /* the SMK-37's pitch wheel, on the track it played */
+    volatile float meter[SS_TRACKS], meter_l, meter_r;   /* peaks for the mixer, falling */
+    uint32_t lfo_clock;                 /* samples since PLAY: the LFOs run in time with the groove */
+    /* MIDI for the main loop (the SMK-37): kind, channel, data 1, data 2 */
+    volatile uint8_t mq[32][4];
+    volatile uint8_t mq_w, mq_r;
     float duck_env;
     uint32_t dly_w;
     float dly_lp;
@@ -147,6 +155,13 @@ static struct {
     uint32_t msg_until;
     ss_pattern_t undo;
     uint8_t undo_pat, undo_ok;
+    /* MAXI */
+    uint8_t smk_seen;                   /* an SMK-37 control came in since the start */
+    uint8_t learn;                      /* 0: no; else the learning's step + 1 (SS_LEARN_*) */
+    uint8_t learn_cc, learn_n, learn_v[3];   /* the control being learned: its CC, how often, its values */
+    ss_smk_t learn_bak;                 /* the map before: HOME cancels */
+    uint8_t smk_shown;                  /* the 8-knob view: which half moved last */
+    uint32_t meter_t;
 } R;
 
 static int16_t dly_buf[DLY_LEN] POOL;
@@ -196,6 +211,40 @@ static void bus_update(int t)
     /* the 8-bit part: fewer bits (BITS), fewer samples (RATE) */
     R.crush[t].q = tr->bits ? pmap((float)(127 - tr->bits), 1.5f, 6.0f) : 0.0f;
     R.crush[t].n = tr->rate ? 1u + (uint32_t)tr->rate * 40u / 127u : 0u;
+    /* TONE: a gentle one-pole filter, a low-pass from 18 kHz down to 150 Hz, or a high-pass from 30 Hz up to 3 kHz */
+    if (tr->tone < 62) {
+        float fc = pmap((float)tr->tone * (127.0f / 61.0f), 150.0f, 6.9f);
+        R.tone_hp[t] = 1;
+        R.tone_c[t] = 1.0f - fexp2(-1.442695f * 6.2831853f * fc * INV_SR);
+    } else if (tr->tone > 66) {
+        float fc = pmap((float)(tr->tone - 67) * (127.0f / 60.0f), 30.0f, 6.6f);
+        R.tone_hp[t] = 2;
+        R.tone_c[t] = 1.0f - fexp2(-1.442695f * 6.2831853f * fc * INV_SR);
+    } else {
+        R.tone_hp[t] = 0;
+    }
+}
+
+/* the MOD page's LFO at this moment, -1..1, in time with the groove */
+static float lfo_val(const ss_track_t *tr)
+{
+    static const uint8_t STEPS[10] = {1, 2, 3, 4, 6, 8, 12, 16, 32, 64};
+    float per = (float)STEPS[tr->lfo_rate > 9 ? 9 : tr->lfo_rate] * (float)SS_SR * 15.0f / (float)R.prj.bpm;
+    float c = (float)R.lfo_clock / per, ph;
+    uint32_t cyc = (uint32_t)c, h;
+    ph = c - (float)cyc;
+    switch (tr->lfo_shape) {
+    case 1: return ph < 0.5f ? 4.0f * ph - 1.0f : 3.0f - 4.0f * ph;
+    case 2: return 1.0f - 2.0f * ph;
+    case 3: return ph < 0.5f ? 1.0f : -1.0f;
+    case 4:                             /* a new random value each cycle */
+        h = (cyc + 1u) * 2654435761u;
+        h ^= h >> 15;
+        h *= 2246822519u;
+        h ^= h >> 13;
+        return (float)(h & 0xFFFFu) * (2.0f / 65535.0f) - 1.0f;
+    default: return fsin(ph);
+    }
 }
 
 /* the filter's coefficients from its envelope: every 16 samples */
@@ -236,7 +285,7 @@ static inline float acid_run(acid_t *a)
     if ((a->ctl++ & 15u) == 0u)
         acid_ctl(a);
     a->f += (a->ft - a->f) * a->gc;
-    dt = a->f * INV_SR;
+    dt = a->f * a->bend * INV_SR;
     a->ph += dt;
     if (a->ph >= 1.0f)
         a->ph -= 1.0f;
@@ -310,6 +359,10 @@ static void trig(int t, int note, float vel, int acc, int slide, const uint8_t *
     float root = (float)((int)R.prj.root + PAT->xpose);
     for (li = 0; li < 8; li++)
         p[li] = li < 4 && lock && lock[li] ? (uint8_t)(lock[li] - 1u) : tr->p[li];
+    if (tr->lfo_depth != 64u) {         /* the MOD page: the LFO moves one sound parameter, hit by hit */
+        int d = tr->lfo_dest & 7u, v = (int)p[d] + (int)((float)((int)tr->lfo_depth - 64) * 2.0f * lfo_val(tr));
+        p[d] = (uint8_t)(v < 0 ? 0 : v > 127 ? 127 : v);
+    }
     bus_update(t);
     R.flash[t] = 1;
     if (t == (int)R.prj.sc_src)
@@ -329,6 +382,7 @@ static void trig(int t, int note, float vel, int acc, int slide, const uint8_t *
         R.kick.click = 70;
         R.kick.click_g = (float)p[5] * (0.5f / 127.0f);
         R.kick.hold = (int32_t)p[6] * 30;           /* up to 86 ms at full level before it falls */
+        R.kick.body = (float)p[7] * (0.6f / 127.0f);   /* the second harmonic: a fuller, boxier kick */
         R.kick.vel = vel;
         break;
     }
@@ -343,6 +397,8 @@ static void trig(int t, int note, float vel, int acc, int slide, const uint8_t *
         R.hat.chip = (float)p[4] * (1.0f / 127.0f);
         R.hat.atc = p[5] ? 1.0f - decay_coef(pmap((float)p[5], 0.0005f, 6.0f)) : 1.0f;
         R.hat.att = p[5] ? 0.0f : 1.0f;
+        R.hat.pan = 0.5f + brand(&R.rng) * (float)p[6] * (0.5f / 127.0f);   /* SPREAD: each hit somewhere else */
+        R.hat.cut = 0.2f + (float)p[7] * (0.6f / 127.0f);   /* CUT: the high-pass, higher is thinner */
         R.hat.amp = 1.0f;
         R.hat.vel = vel;
         break;
@@ -594,6 +650,7 @@ static void transport(int start)
             R.hits[t] = 0;
         }
         R.gstep = 0;
+        R.lfo_clock = 0;
         R.clk = 0.0f;
         R.mclk = 0.0f;
         R.playing = 1;
@@ -606,9 +663,54 @@ static void transport(int start)
 
 void ss_midi_transport(int start) { transport(start); }
 
+/* MIDI for the main loop: the SMK-37's controls, its keys to record, its pads */
+enum { MQ_CC, MQ_KEY, MQ_PAD };
+static void mq_push(int kind, uint32_t ch, uint32_t a, uint32_t b)
+{
+    uint8_t w = R.mq_w;
+    if ((uint8_t)((w + 1u) & 31u) == R.mq_r)
+        return;
+    R.mq[w][0] = (uint8_t)kind;
+    R.mq[w][1] = (uint8_t)ch;
+    R.mq[w][2] = (uint8_t)a;
+    R.mq[w][3] = (uint8_t)b;
+    R.mq_w = (uint8_t)((w + 1u) & 31u);
+}
+
+void ss_midi_cc(uint32_t channel, uint32_t cc, uint32_t value)
+{
+    mq_push(MQ_CC, channel & 15u, cc & 127u, value & 127u);
+}
+
+void ss_midi_bend(uint32_t channel, int value)   /* MAXI: the keys' pitch wheel bends the chosen track, 2 semitones */
+{
+    if (!R.prj.smk.on || channel != R.prj.smk.key_ch)
+        return;
+    R.bendf[R.track] = fexp2((float)value * (2.0f / 12.0f / 8192.0f));
+}
+
 void ss_midi_note(uint32_t channel, uint32_t note, uint32_t velocity)
 {
     int t = -1, n = 0;
+    const ss_smk_t *m = &R.prj.smk;
+    if (R.learn) {                      /* learning: the notes say where the keys and the pads are */
+        mq_push(MQ_KEY, channel, note, velocity);
+        return;
+    }
+    if (m->on && channel == m->pad_ch && note >= m->pad_note && note < (uint32_t)m->pad_note + SS_SMK_PADS) {
+        uint32_t pad = note - m->pad_note;
+        if (pad < SS_TRACKS)            /* pads 1..6 play the six tracks */
+            trig((int)pad, 0, (float)velocity * (1.0f / 127.0f), velocity > 100u, 0, 0);
+        mq_push(MQ_PAD, channel, pad, velocity);
+        return;
+    }
+    if (m->on && channel == m->key_ch) {   /* the keys play the chosen track; its arpeggiator and chords do too */
+        n = (int)note - (int)m->key_base;
+        n = n < -48 ? -48 : n > 48 ? 48 : n;
+        trig(R.track, n, (float)velocity * (1.0f / 127.0f), velocity > 100u, 0, 0);
+        mq_push(MQ_KEY, channel, (uint32_t)(n + 64), velocity);
+        return;
+    }
     if (channel < SS_TRACKS) {
         t = (int)channel;
         n = (int)note - 60;
@@ -641,7 +743,9 @@ void ss_render(int32_t *lr, uint32_t n, uint32_t gain_q12)
     uint32_t i, k;
     float s16 = step_samples(), gain = (float)gain_q12 * (8388607.0f / 4096.0f);
     float duck_amt = (float)R.prj.duck * (0.9f / 127.0f), duck_c = decay_coef(pmap((float)R.prj.sc_rel, 0.03f, 3.7f));
-    float sc[SS_TRACKS], mdrive = 0.4f * (1.0f + (float)R.prj.drive * (3.0f / 127.0f));
+    float sc[SS_TRACKS], mdrive = 0.4f * (1.0f + (float)R.prj.drive * (3.0f / 127.0f)), pk[SS_TRACKS], pkl = 0.0f, pkr = 0.0f;
+    float dret = (float)R.prj.dly_ret * (1.0f / 100.0f), rret = (float)R.prj.rev_ret * (1.0f / 100.0f);
+    float width = (float)R.prj.width * (1.0f / 64.0f);
     float fb = (float)R.prj.dly_fb * (0.85f / 127.0f);
     float rfb = 0.70f + (float)R.prj.rev_size * (0.27f / 127.0f), damp = 0.05f + (float)R.prj.rev_damp * (0.7f / 127.0f);
     static const float DMUL[3] = {1.0f, 2.0f, 3.0f};
@@ -668,6 +772,7 @@ void ss_render(int32_t *lr, uint32_t n, uint32_t gain_q12)
     for (k = 0; k < SS_TRACKS; k++) {
         bus_update((int)k);
         sc[k] = k == R.prj.sc_src ? 0.0f : (float)PAT->tr[k].sc * (1.0f / 127.0f);
+        pk[k] = 0.0f;
     }
 
     for (i = 0; i < n; i++) {
@@ -700,10 +805,12 @@ void ss_render(int32_t *lr, uint32_t n, uint32_t gain_q12)
         /* POTKU: a sine falling fast from far above, a click, a soft clipper */
         x = 0.0f;
         if (R.kick.amp > 1e-4f) {
-            R.kick.ph += R.kick.f0 * (1.0f + R.kick.pd * R.kick.penv) * INV_SR;
+            R.kick.ph += R.kick.f0 * R.bendf[SS_POTKU] * (1.0f + R.kick.pd * R.kick.penv) * INV_SR;
             if (R.kick.ph >= 1.0f)
                 R.kick.ph -= 1.0f;
             x = fsin(R.kick.ph);
+            if (R.kick.body > 0.0f)
+                x += fsin(R.kick.ph * 2.0f) * R.kick.body;
             if (R.kick.click > 0) {
                 x += brand(&R.rng) * R.kick.click_g * (float)R.kick.click * (1.0f / 70.0f);
                 R.kick.click--;
@@ -717,13 +824,15 @@ void ss_render(int32_t *lr, uint32_t n, uint32_t gain_q12)
         }
         v[SS_POTKU] = x;
 
+        R.basso.bend = R.bendf[SS_BASSO];
+        R.happo.bend = R.bendf[SS_HAPPO];
         v[SS_BASSO] = acid_run(&R.basso);
         v[SS_HAPPO] = acid_run(&R.happo) * 0.8f;
 
         /* HATTU: two inharmonic FM pairs against noise, or a sound chip's shift register, high-passed */
         x = 0.0f;
         if (R.hat.amp > 1e-4f) {
-            float f = R.hat.f * INV_SR, m;
+            float f = R.hat.f * R.bendf[SS_HATTU] * INV_SR, m;
             R.hat.ph += f;
             R.hat.mph += f * 1.4471f;
             R.hat.ph2 += f * 1.6170f;
@@ -744,7 +853,7 @@ void ss_render(int32_t *lr, uint32_t n, uint32_t gain_q12)
                 }
                 m += (R.hat.nz - m) * R.hat.chip;
             }
-            R.hat.lp += (m - R.hat.lp) * 0.45f;
+            R.hat.lp += (m - R.hat.lp) * R.hat.cut;
             x = (m - R.hat.lp) * R.hat.amp * R.hat.att * R.hat.vel * 1.6f;
             R.hat.att += (1.0f - R.hat.att) * R.hat.atc;
             R.hat.amp *= R.hat.ac;
@@ -765,7 +874,7 @@ void ss_render(int32_t *lr, uint32_t n, uint32_t gain_q12)
             if (R.piip.vph >= 1.0f)
                 R.piip.vph -= 1.0f;
             lfo = fsin(R.piip.vph);
-            f = R.piip.f * R.piip.mul[R.piip.arp_i] * (1.0f + R.piip.vdep * lfo) * (1.0f + R.piip.bend * R.piip.benv) * INV_SR;
+            f = R.piip.f * R.bendf[SS_PIIP] * R.piip.mul[R.piip.arp_i] * (1.0f + R.piip.vdep * lfo) * (1.0f + R.piip.bend * R.piip.benv) * INV_SR;
             R.piip.benv *= R.piip.bc;
             R.piip.ph += f;
             if (R.piip.ph >= 1.0f)
@@ -812,7 +921,7 @@ void ss_render(int32_t *lr, uint32_t n, uint32_t gain_q12)
         /* OUTO: an FM pair with feedback whose pitch a zap envelope throws about: lasers, bubbles, squeaks */
         x = 0.0f;
         if (R.outo.amp > 1e-4f) {
-            float f = R.outo.f * (1.0f + R.outo.zap * R.outo.zenv) * INV_SR, m;
+            float f = R.outo.f * R.bendf[SS_OUTO] * (1.0f + R.outo.zap * R.outo.zenv) * INV_SR, m;
             if (R.outo.winc > 0.0f) {
                 R.outo.wph += R.outo.winc;
                 if (R.outo.wph >= 1.0f)
@@ -846,6 +955,10 @@ void ss_render(int32_t *lr, uint32_t n, uint32_t gain_q12)
                 float y = v[k] * R.crush[k].q;
                 v[k] = (float)(int)(y + (y < 0.0f ? -0.5f : 0.5f)) / R.crush[k].q;
             }
+            if (R.tone_hp[k]) {         /* the channel's TONE */
+                R.tone_z[k] += (v[k] - R.tone_z[k]) * R.tone_c[k];
+                v[k] = R.tone_hp[k] == 1 ? R.tone_z[k] : v[k] - R.tone_z[k];
+            }
         }
 
         /* the mix: the sidechain's source ducks each track by that track's amount, and the effects */
@@ -855,15 +968,19 @@ void ss_render(int32_t *lr, uint32_t n, uint32_t gain_q12)
         l = r = sd = sr = 0.0f;
         for (k = 0; k < SS_TRACKS; k++) {
             float y = v[k] * (1.0f - x * sc[k]);
-            if (k == SS_OUTO) {
-                l += y * R.bus[k].gl * 2.0f * (1.0f - R.outo.pan);
-                r += y * R.bus[k].gr * 2.0f * R.outo.pan;
+            if (k == SS_OUTO || k == SS_HATTU) {   /* (a pan of their own each hit, around the channel's) */
+                float pn = k == SS_OUTO ? R.outo.pan : R.hat.pan;
+                l += y * R.bus[k].gl * 2.0f * (1.0f - pn);
+                r += y * R.bus[k].gr * 2.0f * pn;
             } else {
                 l += y * R.bus[k].gl;
                 r += y * R.bus[k].gr;
             }
             sd += y * R.bus[k].sd;
             sr += y * R.bus[k].sr;
+            y = y < 0.0f ? -y : y;
+            if (y > pk[k])
+                pk[k] = y;
         }
 
         /* delay: one line, two taps (left the full time, right two thirds of it), filtered feedback */
@@ -894,13 +1011,40 @@ void ss_render(int32_t *lr, uint32_t n, uint32_t gain_q12)
             if (++R.ap_i[k] >= AP_LEN[k])
                 R.ap_i[k] = 0;
         }
-        l += dly_l + rl * duck;
-        r += dly_r + rr * duck;
-
-        lr[2u * i] = (int32_t)(clip1(l * mdrive) * gain);
-        lr[2u * i + 1u] = (int32_t)(clip1(r * mdrive) * gain);
+        l += (dly_l * dret) + rl * duck * rret;
+        r += (dly_r * dret) + rr * duck * rret;
+        if (R.prj.width != 64u) {       /* WIDTH: the side signal, less or more */
+            float m = (l + r) * 0.5f, sd2 = (l - r) * 0.5f * width;
+            l = m + sd2;
+            r = m - sd2;
+        }
+        l = clip1(l * mdrive);
+        r = clip1(r * mdrive);
+        if ((l < 0.0f ? -l : l) > pkl) pkl = l < 0.0f ? -l : l;
+        if ((r < 0.0f ? -r : r) > pkr) pkr = r < 0.0f ? -r : r;
+        lr[2u * i] = (int32_t)(l * gain);
+        lr[2u * i + 1u] = (int32_t)(r * gain);
     }
+    R.lfo_clock += n;
+    for (k = 0; k < SS_TRACKS; k++) {   /* the meters: the block's peak, or falling */
+        float m = R.meter[k] * 0.93f;
+        R.meter[k] = pk[k] > m ? pk[k] : m;
+    }
+    R.meter_l = pkl > R.meter_l * 0.93f ? pkl : R.meter_l * 0.93f;
+    R.meter_r = pkr > R.meter_r * 0.93f ? pkr : R.meter_r * 0.93f;
 }
+
+/* Everything from here on runs in the main loop: the generator, the project, the screen, the panel. None of it is
+ * in a hurry, so it is built for size, not speed (the render above stays at -O2: fm1.toml o2). On the FM-1 that
+ * leaves room in its flash (clang: minsize, as JieLi's toolchain is clang; gcc: -Os). */
+#if defined __clang__ && __clang_major__ >= 6
+#pragma clang attribute push (__attribute__((minsize)), apply_to = function)
+#define SS_SIZE_POP 1
+#elif defined __GNUC__
+#pragma GCC push_options
+#pragma GCC optimize ("Os")
+#define SS_SIZE_POP 2
+#endif
 
 /* ------------------------------------------------------------- generator --- */
 /* What makes a pattern suomisaundi here: the kick on every beat, a bass line that bounces between the kicks and
@@ -961,6 +1105,31 @@ static void euclid(ss_track_t *tr, uint32_t hits, uint32_t rot)
     }
 }
 
+/* the pattern's chord: its root as a degree of the scale; chord tones are every other degree from there */
+static int chord_note(int d)            /* d degrees above the chord's root, in semitones from the track's base */
+{
+    return scale_note((int)PAT->chord + d);
+}
+static int bass_shift(void)             /* the bass keeps its root low: a chord root above F# goes an octave down */
+{
+    return scale_note((int)PAT->chord) > 6 ? -12 : 0;
+}
+static int chord_pick(void)             /* a chord for a new groove: mostly the tonic, else the usual neighbours */
+{
+    static const uint8_t CH[10] = {0, 0, 0, 0, 5, 6, 3, 4, 5, 1};
+    return CH[urand(10)];
+}
+/* a motif value: degrees above the chord's root, 7 and more an octave up */
+static int motif_note(int d)
+{
+    int oct = 0;
+    while (d >= 7) {
+        d -= 7;
+        oct += 12;
+    }
+    return chord_note(d) + oct;
+}
+
 static void gen_track(int t)
 {
     ss_track_t *tr = &PAT->tr[t];
@@ -982,7 +1151,7 @@ static void gen_track(int t)
             tr->step[12].flags |= 0x10u | 1u;       /* a double on the last beat, three times in four */
         break;
     case SS_BASSO: {
-        /* 0 rest, 1 the root, 2 its octave, 3 the fifth, 4 the note below the root, 5 the third */
+        /* 0 rest, 1 the chord's root, 2 its octave, 3 the fifth, 4 the note below, 5 the third */
         static const uint8_t LINE[6][16] = {
             {0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 2},   /* the gallop */
             {0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 2},   /* rolling */
@@ -991,15 +1160,19 @@ static void gen_track(int t)
             {0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 2, 2},   /* over the kick */
             {0, 0, 1, 1, 0, 2, 0, 1, 0, 0, 1, 1, 0, 3, 2, 1},
         };
+        static const int8_t DEG[6] = {0, 0, 7, 4, -1, 2};
         const uint8_t *ln = LINE[urand(6)];
         uint32_t odd = urand(3) == 0 ? urand(16) : 99u;   /* one note off the root, in one line of three */
+        int turn = urand(3) == 0, sh = bass_shift();      /* and in one of three the last beat on the fifth */
         for (i = 0; i < 16; i++) {
             int kind = ln[i], note;
             if (!kind)
                 continue;
             if (i == odd)
                 kind = 3 + (int)urand(3);
-            note = kind == 1 ? 0 : kind == 2 ? 12 : scale_note(kind == 3 ? 4 : kind == 4 ? -1 : 2);
+            if (turn && i >= 12 && kind == 1)
+                kind = 3;
+            note = motif_note(DEG[kind]) + sh;
             set_step(tr, i, kind != 1 || urand(6) == 0, urand(8) == 0 ? 1 : 0, note);
             if (kind != 1 && i && ln[i - 1u] && urand(5) < 2u)
                 tr->step[i].flags |= SS_ST_SLIDE;   /* into the octave on a slide */
@@ -1016,43 +1189,74 @@ static void gen_track(int t)
                     tr->step[i].flags |= 1u;        /* now and then a double */
             }
         break;
-    case SS_HAPPO: {                    /* the acid line: a walk through the scale, accents and slides */
-        static const uint8_t LEN[6] = {16, 16, 12, 14, 8, 10};
-        int deg = 0, prev = 0, on = 0;
+    case SS_HAPPO: {
+        /* the acid line: a rhythm cell of eight steps and a motif of eight notes over the chord, played round the
+         * loop; the second time round the motif's second half moves up a third now and then */
+        static const uint8_t LEN[6] = {16, 16, 16, 12, 14, 8};
+        static const uint8_t RHY[6][8] = {{1, 1, 0, 1, 1, 0, 1, 1}, {1, 0, 1, 1, 0, 1, 1, 0}, {1, 1, 1, 0, 1, 1, 0, 1},
+                                          {0, 1, 1, 1, 0, 1, 0, 1}, {1, 0, 1, 0, 1, 1, 1, 1}, {1, 1, 0, 1, 0, 1, 1, 0}};
+        static const int8_t MOT[8][8] = {
+            {0, 0, 7, 0, 4, 0, 7, 2},           /* a pedal with jumps */
+            {0, 2, 4, 7, 4, 2, 0, -1},          /* up and down the chord */
+            {0, 7, 0, 6, 0, 4, 3, 2},
+            {0, 0, 2, 3, 4, 3, 2, 0},           /* a walk */
+            {7, 4, 0, 4, 7, 9, 7, 4},
+            {0, 1, 0, 4, 0, 6, 0, 7},           /* the phrygian squeak */
+            {4, 2, 0, -3, 0, 2, 4, 7},
+            {0, 4, 7, 4, 0, 4, 9, 7},
+        };
+        const uint8_t *rh = RHY[urand(6)];
+        const int8_t *mo = MOT[urand(8)];
+        int prev = -99, lift = urand(2) ? 2 : 0;
+        uint32_t n = 0;
         tr->len = LEN[urand(6)];
         for (i = 0; i < tr->len; i++) {
-            if (urand(100) >= 62u) {
-                prev = 0;
+            int on = rh[i & 7u], d, note;
+            if (urand(10) == 0)
+                on = !on;                   /* a step more or less than the cell */
+            if (!on) {
+                prev = -99;
                 continue;
             }
-            deg += (int)urand(5) - 2;
-            deg = deg < -3 ? -3 : deg > 8 ? 8 : deg;
-            set_step(tr, i, urand(4) == 0, urand(6) == 0 ? 1 : 0, scale_note(deg) + (urand(8) == 0 ? 12 : 0));
-            if (prev && urand(3) == 0)
-                tr->step[i].flags |= SS_ST_SLIDE;
-            prev = 1;
-            on++;
-        }
-        if (on < 2) {
-            set_step(tr, 2, 1, 0, 0);
-            set_step(tr, 3, 0, 0, scale_note(2));
+            d = mo[n & 7u] + (n >= 8u && (n & 7u) >= 4u ? lift : 0);
+            note = motif_note(d < -6 ? -6 : d);
+            set_step(tr, i, d >= 7 || (n & 3u) == 0u ? urand(3) != 0 : urand(6) == 0, urand(7) == 0 ? 1 : 0, note);
+            if (prev > -99 && (note - prev >= 5 || prev - note >= 5) && urand(2))
+                tr->step[i].flags |= SS_ST_SLIDE;   /* the big jumps glide */
+            prev = note;
+            n++;
         }
         break;
     }
-    case SS_PIIP: {                     /* the melody: a figure of four notes on an even spread, moved up every other time */
+    case SS_PIIP: {
+        /* the melody: question and answer, eight notes over the chord, the answer back home on its root; it
+         * leaves room where the acid line plays */
         static const uint8_t LEN[5] = {16, 16, 12, 10, 6};
-        static const int8_t SHAPE[6][4] = {{0, 2, 4, 7}, {7, 4, 2, 0}, {0, 4, 2, 5}, {0, 2, 4, 2}, {4, 2, 0, -1}, {0, 7, 4, 9}};
-        const int8_t *sh = SHAPE[urand(6)];
-        uint32_t n = 0, up = 1 + urand(3);
+        static const int8_t MOT[8][8] = {
+            {0, 2, 4, 2, 0, 2, 4, 7}, {7, 6, 4, 2, 4, 2, 1, 0}, {4, 4, 2, 4, 7, 6, 4, 4}, {0, 4, 7, 9, 7, 4, 2, 0},
+            {2, 0, -1, 0, 2, 4, 2, 0}, {0, 7, 0, 6, 0, 4, 0, 2}, {4, 3, 2, 0, 2, 3, 4, 7}, {0, 2, 0, 4, 0, 5, 4, 2},
+        };
+        const int8_t *mo = MOT[urand(8)];
+        const ss_track_t *acid = &PAT->tr[SS_HAPPO];
+        uint32_t n = 0, up = urand(3) == 0 ? 2u : 0u, alen = acid->len ? acid->len : 1u;
         tr->len = LEN[urand(5)];
         euclid(tr, tr->len / 2u + urand(tr->len / 4u + 1u), urand(tr->len));
         for (i = 0; i < tr->len; i++)
             if (tr->step[i].flags & SS_ST_ON) {
-                set_step(tr, i, n % 4u == 0u, urand(5) == 0 ? 2 : 0, scale_note(sh[n % 4u] + (n / 4u % 2u ? (int)up : 0)));
+                if ((acid->step[i % alen].flags & SS_ST_ON) && urand(2)) {
+                    tr->step[i].flags = 0;  /* call and response */
+                    continue;
+                }
+                set_step(tr, i, (n & 3u) == 0u, urand(5) == 0 ? 2 : 0,
+                         motif_note(mo[n & 7u] + (int)(n / 8u % 2u ? up : 0u)));
                 if (n && urand(6) == 0)
                     tr->step[i].flags |= SS_ST_SLIDE;
                 n++;
             }
+        if (!n) {
+            set_step(tr, 0, 1, 0, motif_note(0));
+            set_step(tr, tr->len / 2u, 0, 0, motif_note(4));
+        }
         break;
     }
     default: {                          /* OUTO: a few zaps on an odd length, seldom, each with its own sound */
@@ -1061,7 +1265,7 @@ static void gen_track(int t)
         euclid(tr, 1 + urand(3), urand(tr->len));
         for (i = 0; i < tr->len; i++)
             if (tr->step[i].flags & SS_ST_ON) {
-                set_step(tr, i, (int)urand(2), 1 + (int)urand(3), (int)urand(25) - 12);
+                set_step(tr, i, (int)urand(2), 1 + (int)urand(3), chord_note(2 * (int)urand(4)) + 12 * ((int)urand(3) - 1));
                 tr->step[i].lock[1] = (uint8_t)(1u + urand(128));
                 tr->step[i].lock[2] = (uint8_t)(1u + urand(128));
                 tr->step[i].lock[3] = (uint8_t)(1u + urand(128));
@@ -1113,7 +1317,8 @@ static void mutate_track(int t)
             st->flags = (uint8_t)((st->flags & ~0x30u) | (urand(4) << 4));
     } else if (kind == 2) {
         if ((st->flags & SS_ST_ON) && t != SS_POTKU && t != SS_HATTU)
-            st->note = (int8_t)scale_note((int)urand(6) - 1);
+            st->note = (int8_t)(t == SS_BASSO ? motif_note(urand(3) ? 0 : 4) + bass_shift()
+                                              : motif_note(2 * (int)urand(4) - (urand(4) == 0)));   /* a chord tone */
     } else if (st->flags & SS_ST_ON) {
         st->flags ^= SS_ST_ACC;
     }
@@ -1144,16 +1349,17 @@ static void pattern_defaults(ss_pattern_t *p)
     /* (tools/manual.py reads this table and SOUND_NAME for the manuals) */
     static const uint8_t DEF[SS_TRACKS][14] = {
         /* p0   p1   p2   p3   p4   p5   p6   p7  level pan  dly  rev  bits rate */
-        {  48,  58,  62,  40,  40,  50,  20,   0, 122,  64,   0,   0,   0,   0},   /* POTKU */
+        {  48,  58,  62,  40,  40,  50,  20,  10, 122,  64,   0,   0,   0,   0},   /* POTKU */
         {  52,  40,  60,  34,   0,  40,  50,  40, 108,  64,   0,   0,   0,   0},   /* BASSO */
-        {  40,  72,  70,  64,   0,   0,   0,   0,  84,  76,  14,  14,   0,   0},   /* HATTU */
+        {  40,  72,  70,  64,   0,   0,  20,  50,  84,  76,  14,  14,   0,   0},   /* HATTU */
         {  58,  96,  74,  44,   0,  90,  60,  60,  84,  52,  60,  20,   0,   0},   /* HAPPO */
         {  30,  46,  40,  30,  64,  30,  64,   0,  76,  80,  70,  40,   0,   0},   /* PIIP */
         {  60,  80,  48, 100,  50,  40,   0,  50,  80,  64,  60,  50,   0,   0},   /* OUTO */
     };
     int t, i;
     p->xpose = 0;
-    p->rsv[0] = p->rsv[1] = p->rsv[2] = 0;
+    p->chord = 0;
+    p->rsv[0] = p->rsv[1] = 0;
     for (t = 0; t < SS_TRACKS; t++) {
         ss_track_t *tr = &p->tr[t];
         for (i = 0; i < 8; i++)
@@ -1164,6 +1370,10 @@ static void pattern_defaults(ss_pattern_t *p)
         tr->rev = DEF[t][11];
         tr->bits = DEF[t][12];
         tr->rate = DEF[t][13];
+        tr->tone = 64;
+        tr->lfo_rate = 7;                   /* one bar */
+        tr->lfo_shape = tr->lfo_dest = 0;
+        tr->lfo_depth = 64;                 /* off */
         tr->mute = 0;
         tr->eu_hits = tr->eu_rot = tr->eu_acc = tr->dep_src = tr->dep_mode = 0;
         tr->tshift = 0;
@@ -1173,7 +1383,6 @@ static void pattern_defaults(ss_pattern_t *p)
         for (i = 0; i < SS_STEPS; i++) {
             tr->step[i].flags = 0;
             tr->step[i].note = 0;
-            tr->step[i].rsv = 0;
             step_plain(&tr->step[i]);
         }
     }
@@ -1191,6 +1400,27 @@ static uint32_t prj_sum(const ss_project_t *p)
     return c << 16 | a;
 }
 
+/* the SMK-37 map the FM-1 expects from the factory (set the same in the SMK-37's MIDI SUITE, or learn another):
+ * keys on channel 1, middle C plays a track's base note; pads on channel 10 from note 36; knobs and faders on
+ * channel 1, K1..K16 CC 20..35, F1..F8 CC 41..48 */
+static void smk_preset(ss_smk_t *m)
+{
+    int i;
+    m->on = 1;
+    m->key_ch = 0;
+    m->key_base = 60;
+    m->pad_ch = 9;
+    m->pad_note = 36;
+    m->cc_ch = 0;
+    for (i = 0; i < SS_SMK_KNOBS; i++)
+        m->knob_cc[i] = (uint8_t)(20 + i);
+    for (i = 0; i < SS_SMK_FADERS; i++)
+        m->fader_cc[i] = (uint8_t)(41 + i);
+    m->knob_rel = 0;
+    m->rel_kind = 0;
+    m->rsv = 0;
+}
+
 static void prj_sanitize(ss_project_t *p)
 {
     int a, t, i;
@@ -1199,6 +1429,22 @@ static void prj_sanitize(ss_project_t *p)
     LIM(p->swing, 50, 75);
     LIM(p->seko, 0, 127);
     LIM(p->drive, 0, 127);
+    LIM(p->dly_ret, 0, 127);
+    LIM(p->rev_ret, 0, 127);
+    LIM(p->width, 0, 127);
+    LIM(p->smk.on, 0, 1);
+    LIM(p->smk.key_ch, 0, 15);
+    LIM(p->smk.pad_ch, 0, 15);
+    LIM(p->smk.cc_ch, 0, 15);
+    LIM(p->smk.key_base, 0, 127);
+    LIM(p->smk.pad_note, 0, 112);
+    LIM(p->smk.rel_kind, 0, 1);
+    for (i = 0; i < SS_SMK_KNOBS; i++)
+        if (p->smk.knob_cc[i] > 127)
+            p->smk.knob_cc[i] = 255;
+    for (i = 0; i < SS_SMK_FADERS; i++)
+        if (p->smk.fader_cc[i] > 127)
+            p->smk.fader_cc[i] = 255;
     LIM(p->duck, 0, 127);
     LIM(p->root, 24, 47);
     LIM(p->scale, 0, SS_NSCALES - 1);
@@ -1213,6 +1459,7 @@ static void prj_sanitize(ss_project_t *p)
     LIM(p->sc_rel, 0, 127);
     for (a = 0; a < SS_PATTERNS; a++) {
         LIM(p->pat[a].xpose, -12, 12);
+        LIM(p->pat[a].chord, 0, 6);
         for (t = 0; t < SS_TRACKS; t++) {
             ss_track_t *tr = &p->pat[a].tr[t];
             LIM(tr->len, 1, SS_STEPS);
@@ -1231,6 +1478,11 @@ static void prj_sanitize(ss_project_t *p)
             LIM(tr->eu_acc, 0, 4);
             LIM(tr->bits, 0, 127);
             LIM(tr->rate, 0, 127);
+            LIM(tr->tone, 0, 127);
+            LIM(tr->lfo_rate, 0, 9);
+            LIM(tr->lfo_shape, 0, 4);
+            LIM(tr->lfo_dest, 0, 7);
+            LIM(tr->lfo_depth, 0, 127);
             for (i = 0; i < 8; i++)
                 LIM(tr->p[i], 0, 127);
             for (i = 0; i < SS_STEPS; i++) {
@@ -1299,6 +1551,7 @@ void ss_init(uint32_t seed)
     uint32_t i;
     uint8_t *z = (uint8_t *)&R;
     int a, t;
+    uint32_t prog;
     for (i = 0; i < sizeof R; i++)
         z[i] = 0;
     sin_init();
@@ -1322,11 +1575,18 @@ void ss_init(uint32_t seed)
     R.prj.rev_damp = 60;
     R.prj.clock_out = 1;
     R.prj.drive = 30;
+    R.prj.dly_ret = R.prj.rev_ret = 100;
+    R.prj.width = 64;
+    smk_preset(&R.prj.smk);
+    for (i = 0; i < SS_TRACKS; i++)
+        R.bendf[i] = 1.0f;
+    prog = urand(5);
     for (a = SS_PATTERNS - 1; a >= 0; a--) {   /* four grooves; A is the one playing */
-        static const int8_t KEY[SS_PATTERNS] = {0, 0, 3, -2};   /* with CHAIN on, C and D change the key */
+        /* the four patterns are a progression: with CHAIN on, the chords change */
+        static const uint8_t PROG[5][SS_PATTERNS] = {{0, 5, 6, 0}, {0, 3, 4, 0}, {0, 6, 5, 6}, {0, 1, 0, 6}, {0, 5, 3, 4}};
         R.prj.cur_pat = (uint8_t)a;
         pattern_defaults(PAT);
-        PAT->xpose = KEY[a];
+        PAT->chord = PROG[prog][a];
         for (t = 0; t < SS_TRACKS; t++)
             gen_track(t);
     }
@@ -1445,18 +1705,19 @@ static void cat_int(char *d, int v)
 }
 
 /* ------------------------------------------------------------ parameters --- */
+enum { F_LRATE = 100, F_LSHAPE, F_LDEST, F_TONE, F_WIDTH, F_CHORDN, F_CH };
 enum { F_NUM, F_BPM, F_PCT, F_PAN, F_ROOT, F_SCALE, F_DTIME, F_ONOFF, F_WAVE, F_ARP, F_ORATIO, F_BIPOLAR, F_OFFNUM, F_CHAIN,
        F_EPROB, F_EACC, F_TRACK, F_DEPSRC, F_DEPMODE, F_SHIFT, F_XPOSE };
 typedef struct { const char *name; uint8_t *v; uint8_t lo, hi, fmt, big; } param_t;
 
 static const char *const TRACK_NAME[SS_TRACKS] = {"POTKU", "BASSO", "HATTU", "HAPPO", "PIIP", "OUTO"};
 static const char *const PAGE_NAME[SS_NPAGES] = {"GROOVE", "SOUND", "MIX", "FX", "GLOBAL", "EUCLID", "SIDECHAIN", "LINK", "TIMING",
-                                                 "SOUND 2", "8-BIT", "GLOBAL 2"};
+                                                 "SOUND 2", "CHANNEL", "GLOBAL 2", "MOD", "MASTER", "SMK-37"};
 /* K1 .. K4 on the pages SOUND and SOUND 2 (0: the knob is free) */
 static const char *const SOUND_NAME[SS_TRACKS][8] = {
-    {"TUNE", "DECAY", "SWEEP", "DRIVE", "SNAP", "CLICK", "HOLD", 0},
+    {"TUNE", "DECAY", "SWEEP", "DRIVE", "SNAP", "CLICK", "HOLD", "BODY"},
     {"CUTOFF", "RESO", "ENVMOD", "DECAY", "WAVE", "SUB", "GLIDE", "DRIVE"},
-    {"DECAY", "TONE", "METAL", "OPEN", "CHIP", "SHAKE", 0, 0},
+    {"DECAY", "TONE", "METAL", "OPEN", "CHIP", "SHAKE", "SPREAD", "CUT"},
     {"CUTOFF", "RESO", "ENVMOD", "DECAY", "WAVE", "ACCENT", "GLIDE", "DRIVE"},
     {"WAVE", "DECAY", "ARP", "VIBRATO", "SPEED", "PWM", "BEND", "DETUNE"},
     {"DECAY", "FM", "RATIO", "ZAP", "ZTIME", "FEEDBK", "WOBBLE", "RANDOM"},
@@ -1501,13 +1762,33 @@ static int page_params(param_t p[4])
         }
         break;
     }
-    case SS_PG_BITS:
-        P(0, "BITS", &tr->bits, 0, 127, F_OFFNUM, 1);
-        P(1, "RATE", &tr->rate, 0, 127, F_OFFNUM, 1);
+    case SS_PG_CHAN:                    /* the channel strip beyond the mix: its filter, the 8-bit part, the ducking */
+        P(0, "TONE", &tr->tone, 0, 127, F_TONE, 1);
+        P(1, "BITS", &tr->bits, 0, 127, F_OFFNUM, 1);
+        P(2, "RATE", &tr->rate, 0, 127, F_OFFNUM, 1);
+        P(3, "DUCK", &tr->sc, 0, 127, F_NUM, 1);
+        break;
+    case SS_PG_MOD:                     /* the track's LFO: it moves one sound parameter, hit by hit */
+        P(0, "RATE", &tr->lfo_rate, 0, 9, F_LRATE, 0);
+        P(1, "SHAPE", &tr->lfo_shape, 0, 4, F_LSHAPE, 0);
+        P(2, "DEST", &tr->lfo_dest, 0, 7, F_LDEST, 0);
+        P(3, "DEPTH", &tr->lfo_depth, 0, 127, F_BIPOLAR, 1);
+        break;
+    case SS_PG_MASTER:
+        P(0, "DRIVE", &R.prj.drive, 0, 127, F_NUM, 1);
+        P(1, "D.RET", &R.prj.dly_ret, 0, 127, F_NUM, 1);
+        P(2, "R.RET", &R.prj.rev_ret, 0, 127, F_NUM, 1);
+        P(3, "WIDTH", &R.prj.width, 0, 127, F_WIDTH, 1);
         break;
     case SS_PG_GLOBAL2:                 /* (a signed value: F_XPOSE is handled apart, -12..12) */
         P(0, "XPOSE", (uint8_t *)&PAT->xpose, 0, 24, F_XPOSE, 0);
-        P(1, "DRIVE", &R.prj.drive, 0, 127, F_NUM, 1);
+        P(1, "CHORD", &PAT->chord, 0, 6, F_CHORDN, 0);
+        break;
+    case SS_PG_SMK:                     /* MAXI: the SMK-37 */
+        P(0, "MAXI", &R.prj.smk.on, 0, 1, F_ONOFF, 0);
+        P(1, "KEYS CH", &R.prj.smk.key_ch, 0, 15, F_CH, 0);
+        P(2, "PADS CH", &R.prj.smk.pad_ch, 0, 15, F_CH, 0);
+        P(3, "CC CH", &R.prj.smk.cc_ch, 0, 15, F_CH, 0);
         break;
     case SS_PG_MIX:
         P(0, "LEVEL", &tr->level, 0, 127, F_NUM, 1);
@@ -1594,6 +1875,29 @@ static void param_text(const param_t *p, char *t)
             cat(t, "OFF");
         break;
     case F_CHAIN: cat(t, CHAIN[v & 3]); break;
+    case F_LRATE: {
+        static const char *const LR[10] = {"1/16", "1/8", "3/16", "1/4", "3/8", "1/2", "3/4", "1BAR", "2BAR", "4BAR"};
+        cat(t, LR[v > 9 ? 9 : v]);
+        break;
+    }
+    case F_LSHAPE: {
+        static const char *const LS[5] = {"SIN", "TRI", "SAW", "SQR", "RND"};
+        cat(t, LS[v > 4 ? 4 : v]);
+        break;
+    }
+    case F_LDEST: cat(t, SOUND_NAME[R.track][v & 7] ? SOUND_NAME[R.track][v & 7] : "-"); break;
+    case F_TONE:
+        if (v < 62) { cat(t, "LP"); cat_int(t, 62 - v); }
+        else if (v > 66) { cat(t, "HP"); cat_int(t, v - 66); }
+        else cat(t, "FLAT");
+        break;
+    case F_WIDTH: cat_int(t, (v * 200 + 63) / 127); cat(t, "%"); break;
+    case F_CHORDN: {
+        static const char *const RN[7] = {"I", "II", "III", "IV", "V", "VI", "VII"};
+        cat(t, RN[v % 7]);
+        break;
+    }
+    case F_CH: cat_int(t, v + 1); break;
     case F_EPROB: cat(t, EPROB[v & 3]); break;
     case F_EACC: cat(t, EACC[v > 4 ? 4 : v]); break;
     case F_TRACK: cat(t, TRACK_NAME[v % SS_TRACKS]); break;
@@ -1630,6 +1934,104 @@ static int held_step(void)              /* the lowest held white key in step mod
     return -1;
 }
 
+/* MAXI's learning, step by step: a key, the first pad, the knobs, the faders */
+enum { LEARN_KEY = 1, LEARN_PAD, LEARN_KNOB, LEARN_FADER = LEARN_KNOB + SS_SMK_KNOBS, LEARN_END = LEARN_FADER + SS_SMK_FADERS };
+
+static int is_mixer(void) { return R.page == SS_PG_MIX || R.page == SS_PG_CHAN || R.page == SS_PG_MASTER; }
+/* MAXI on the sound pages: all eight sound knobs at once, as the SMK-37's K1..K8 */
+static int eight_view(void)
+{
+    return R.prj.smk.on && R.smk_seen && (R.page == SS_PG_SOUND || R.page == SS_PG_SOUND2);
+}
+static int meter_px(float m, int h)     /* a peak as a bar: roughly in decibels, the top at full scale */
+{
+    float x = m > 1.0f ? 1.0f : m;
+    x = x * (2.0f - x);                 /* (a soft curve: quiet things still show) */
+    x = x * (2.0f - x);
+    return (int)(x * (float)h);
+}
+
+/* the mixer: a strip a track, its meter, its fader, its sends, its pan, mute and solo */
+static void draw_mixer(void)
+{
+    int k;
+    char t[8];
+    for (k = 0; k < SS_TRACKS; k++) {
+        const ss_track_t *tr = &PAT->tr[k];
+        int x = k * 40, cur = k == R.track, quiet = tr->mute || (R.solo >= 0 && R.solo != k);
+        uint16_t col = quiet ? C_DIM : TRACK_COL[k];
+        int lv = tr->level * 70 / 127, mt = meter_px(R.meter[k], 70), y0 = 40, y1 = 110;
+        if (cur)
+            rect(x + 1, 25, 38, 120, RGB(34, 30, 40));
+        rect(x + 2, 26, 36, 11, cur ? col : C_BG);
+        text(x + 20 - text_w(TRACK_NAME[k], 1) / 2, 28, TRACK_NAME[k], cur ? C_BG : col, 1);
+        rect(x + 5, y0, 5, 70, C_LINE);                     /* the meter */
+        rect(x + 5, y1 - mt, 5, mt, mt > 64 ? C_FG : shade(col, 1));
+        rect(x + 17, y0, 2, 70, C_LINE);                    /* the fader */
+        rect(x + 12, y1 - lv - 2, 12, 5, cur ? C_FG : col);
+        rect(x + 28, y1 - tr->dly * 70 / 127, 3, tr->dly * 70 / 127, C_MID);   /* the sends: delay, reverb */
+        rect(x + 33, y1 - tr->rev * 70 / 127, 3, tr->rev * 70 / 127, C_DIM);
+        rect(x + 4, 116, 32, 1, C_LINE);                    /* pan */
+        rect(x + 4 + tr->pan * 29 / 127, 114, 3, 5, col);
+        if (R.page == SS_PG_CHAN) {                         /* the channel's tone and 8 bits */
+            t[0] = 0;
+            if (tr->tone < 62) cat(t, "LP");
+            else if (tr->tone > 66) cat(t, "HP");
+            if (tr->bits || tr->rate) cat(t, t[0] ? "8" : "8BIT");
+            text(x + 4, 123, t, col, 1);
+        } else if (R.page == SS_PG_MASTER && k == 0) {
+            text(x + 4, 123, "D", C_MID, 1);
+        }
+        if (tr->mute)
+            text(x + 4, 134, "M", C_FG, 1);
+        if (R.solo == k)
+            text(x + 14, 134, "S", C_ACC, 1);
+    }
+    if (R.page == SS_PG_MASTER) {                           /* the sum, at the right edge */
+        rect(234, 40, 2, 70, C_LINE);
+        rect(237, 40, 2, 70, C_LINE);
+        rect(234, 110 - meter_px(R.meter_l, 70), 2, meter_px(R.meter_l, 70), C_ACC);
+        rect(237, 110 - meter_px(R.meter_r, 70), 2, meter_px(R.meter_r, 70), C_ACC);
+    }
+}
+
+static void draw_value(int x, int y, const char *name, int v, int hot, int lit)
+{
+    char t[8];
+    text(x, y, name ? name : "-", hot ? C_ACC : C_MID, 1);
+    t[0] = 0;
+    cat_int(t, v);
+    text(x, y + 9, t, lit ? C_FG : C_DIM, 1);
+    rect(x, y + 18, 52, 2, C_LINE);
+    rect(x, y + 18, v * 52 / 127, 2, lit ? C_FG : C_DIM);
+}
+
+/* MAXI: the eight sound knobs, the SMK-37's K1..K8; the row the FM-1's knobs turn is lit */
+static void draw_eight(void)
+{
+    const ss_track_t *tr = &PAT->tr[R.track];
+    int i, lower = R.page == SS_PG_SOUND2;
+    for (i = 0; i < 8; i++)
+        if (SOUND_NAME[R.track][i])
+            draw_value(4 + (i & 3) * 60, PARAM_Y + 12 + (i >> 2) * 24, SOUND_NAME[R.track][i], tr->p[i],
+                       R.smk_shown == i + 1, (i >= 4) == lower);
+    text(236 - text_w("SMK K1-K8", 1), PARAM_Y, "SMK K1-K8", C_DIM, 1);
+}
+
+static void draw_learn(void)
+{
+    char t[24];
+    int s = R.learn;
+    text(4, PARAM_Y, "SMK-37 LEARN", C_ACC, 1);
+    t[0] = 0;
+    if (s == LEARN_KEY) cat(t, "PLAY MIDDLE C");
+    else if (s == LEARN_PAD) cat(t, "HIT PAD 1");
+    else if (s < LEARN_FADER) { cat(t, "TURN K"); cat_int(t, s - LEARN_KNOB + 1); }
+    else { cat(t, "MOVE F"); cat_int(t, s - LEARN_FADER + 1); }
+    text(4, PARAM_Y + 16, t, C_FG, 2);
+    text(4, PARAM_Y + 40, s >= LEARN_KNOB + 8 ? "BANK BUTTON FIRST  SEL SKIP" : "SEL SKIP", C_DIM, 1);
+}
+
 void ss_draw(uint16_t *px, int strip)
 {
     char t[32];
@@ -1662,8 +2064,12 @@ void ss_draw(uint16_t *px, int strip)
     }
     rect(0, 23, SS_W, 1, C_LINE);
 
-    /* the grid: a lane a track, each as long as its own loop */
-    for (lane = 0; lane < SS_TRACKS; lane++) {
+    /* the grid: a lane a track, each as long as its own loop; on the mixer's pages the mixer */
+    if (R.prj.smk.on && R.smk_seen)
+        rect(3, 20, 100, 2, C_ACC);     /* MAXI: an SMK-37 is playing along */
+    if (is_mixer())
+        draw_mixer();
+    else for (lane = 0; lane < SS_TRACKS; lane++) {
         const ss_track_t *tr = &PAT->tr[lane];
         int y = GRID_Y + lane * LANE_H, cur = lane == R.track;
         int quiet = tr->mute || (R.solo >= 0 && R.solo != lane);
@@ -1717,12 +2123,18 @@ void ss_draw(uint16_t *px, int strip)
     t[0] = 0;
     cat(t, PAGE_NAME[R.page]);
     if (R.page == SS_PG_SOUND || R.page == SS_PG_MIX || R.page == SS_PG_EUCLID || R.page == SS_PG_SC ||
-        R.page == SS_PG_LINK || R.page == SS_PG_TIMING || R.page == SS_PG_SOUND2 || R.page == SS_PG_BITS) {
+        R.page == SS_PG_LINK || R.page == SS_PG_TIMING || R.page == SS_PG_SOUND2 || R.page == SS_PG_CHAN ||
+        R.page == SS_PG_MOD) {
         cat(t, " ");
         cat(t, TRACK_NAME[R.track]);
     }
-    text(4, PARAM_Y, t, C_ACC, 1);
-    if (hs >= 0 && R.page == SS_PG_SOUND) {   /* a step held on the sound page: its own values (locks) */
+    if (!R.learn)
+        text(4, PARAM_Y, t, C_ACC, 1);
+    if (R.learn) {
+        draw_learn();
+    } else if (eight_view() && hs < 0) {
+        draw_eight();
+    } else if (hs >= 0 && R.page == SS_PG_SOUND) {   /* a step held on the sound page: its own values (locks) */
         const ss_step_t *st = &PAT->tr[R.track].step[hs];
         t[0] = 0;
         cat(t, "STEP ");
@@ -1804,7 +2216,8 @@ void ss_draw(uint16_t *px, int strip)
              R.keys_mode ? C_ACC : C_MID, 1);
         if (R.unsaved)
             text(150, FOOT_Y, "UNSAVED", C_DIM, 1);
-        text(4, FOOT_Y + 13, R.keys_mode ? "KEYS PLAY THE TRACK  REC: STEPS" :
+        text(4, FOOT_Y + 13, R.learn ? "SAVE: DONE  HOME: CANCEL" : R.keys_mode ? "KEYS PLAY THE TRACK  REC: STEPS" :
+             R.page == SS_PG_SMK ? "SEL: LEARN  ARP: FACTORY MAP" :
              R.page == SS_PG_TIMING ? "SELECT: NEXT HIT  KEY: PICK STEP" : "SEL NEW  ARP MUTATE  LFO MUTE/SOLO",
              C_DIM, 1);
     }
@@ -1843,6 +2256,198 @@ static void keep_undo(void)
 }
 static int clampi(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
 
+static void new_groove(void)
+{
+    int k;
+    keep_undo();
+    PAT->chord = (uint8_t)chord_pick();   /* a new groove: a new chord too */
+    for (k = 0; k < SS_TRACKS; k++)
+        gen_track(k);
+    ss_message("NEW", "GROOVE");
+    changed();
+}
+static void undo_pattern(void)
+{
+    if (R.undo_ok && R.undo_pat == R.prj.cur_pat) {
+        static ss_pattern_t now;        /* (static: not on a small stack) */
+        now = *PAT;
+        *PAT = R.undo;
+        R.undo = now;                   /* undo again: redo */
+        ss_message("UNDO", "");
+        changed();
+    }
+}
+static void record_hit(int t, int note, int vel)   /* REC while playing: a note into the step it fell on */
+{
+    ss_track_t *tr = &PAT->tr[t];
+    uint32_t len = tr->len ? tr->len : 1u;
+    if (!R.keys_mode || !R.playing)
+        return;
+    set_step(tr, R.pos[t] % len, vel > 100, 0, note);
+    changed();
+}
+
+/* a knob's new value from its message: a position, or a step from where it is */
+static int knob_value(int k, int cur, int v, int lo, int hi)
+{
+    const ss_smk_t *m = &R.prj.smk;
+    if (m->knob_rel >> k & 1u) {
+        int d = m->rel_kind ? v - 64 : v < 64 ? v : v - 128;
+        if (hi - lo < 20)               /* a short range: one a message */
+            d = d > 0 ? 1 : d < 0 ? -1 : 0;
+        else
+            d *= 2;
+        return clampi(cur + d, lo, hi);
+    }
+    return lo + v * (hi - lo + 1) / 128;
+}
+
+/* MAXI: the SMK-37's knobs, faders, keys and pads, as the audio context passed them on */
+static void smk_input(int hs)
+{
+    ss_smk_t *m = &R.prj.smk;
+    while (R.mq_r != R.mq_w) {
+        uint8_t r = R.mq_r, kind = R.mq[r][0], ch = R.mq[r][1], a = R.mq[r][2], b = R.mq[r][3];
+        int k;
+        R.mq_r = (uint8_t)((r + 1u) & 31u);
+        if (R.learn) {                  /* ---- learning */
+            int s = R.learn;
+            if (kind == MQ_KEY && s == LEARN_KEY && b) {
+                m->key_ch = ch;
+                m->key_base = a;
+                R.learn++;
+            } else if (kind == MQ_KEY && s == LEARN_PAD && b) {
+                m->pad_ch = ch;
+                m->pad_note = (uint8_t)(a > 112 ? 112 : a);
+                R.learn++;
+            } else if (kind == MQ_CC && s >= LEARN_KNOB) {
+                int used = 0;
+                for (k = 0; k < SS_SMK_KNOBS; k++)
+                    used |= m->knob_cc[k] == a;
+                for (k = 0; k < SS_SMK_FADERS; k++)
+                    used |= m->fader_cc[k] == a;
+                if (used || (s > LEARN_KNOB && ch != m->cc_ch))
+                    continue;           /* a control already learned, still moving */
+                if (s == LEARN_KNOB)
+                    m->cc_ch = ch;
+                if (s >= LEARN_FADER) { /* a fader: its first message is enough */
+                    m->fader_cc[s - LEARN_FADER] = a;
+                    R.learn++;
+                } else {                /* a knob: three messages; the same value three times is a knob that steps */
+                    if (R.learn_n == 0 || R.learn_cc != a) {
+                        R.learn_cc = a;
+                        R.learn_n = 0;
+                    }
+                    R.learn_v[R.learn_n++] = b;
+                    if (R.learn_n == 3) {
+                        k = s - LEARN_KNOB;
+                        m->knob_cc[k] = a;
+                        if (R.learn_v[0] == R.learn_v[1] && R.learn_v[1] == R.learn_v[2]) {
+                            m->knob_rel |= (uint16_t)(1u << k);
+                            m->rel_kind = b > 32 && b < 96;
+                        } else {
+                            m->knob_rel &= (uint16_t)~(1u << k);
+                        }
+                        R.learn_n = 0;
+                        R.learn++;
+                    }
+                }
+            }
+            if (R.learn >= LEARN_END) {
+                R.learn = 0;
+                m->on = 1;
+                ss_message("LEARNED", "MAXI");
+                changed();
+            }
+            R.dirty |= STRIP_PAGE;
+            continue;
+        }
+        if (!m->on)
+            continue;
+        if (kind == MQ_CC) {            /* ---- knobs, faders, the mod wheel */
+            ss_track_t *tr = &PAT->tr[R.track];
+            char val[8];
+            const char *name = 0;
+            int v = -1;
+            if (a == 1u && ch == m->key_ch) {   /* the mod wheel: SEKO */
+                R.prj.seko = b;
+                name = "SEKO";
+                v = b;
+            } else if (ch == m->cc_ch) {
+                for (k = 0; k < SS_SMK_KNOBS && m->knob_cc[k] != a; k++) {}
+                if (k < 8) {            /* K1..K8: the chosen track's eight sound knobs; a step held: its lock */
+                    if (!SOUND_NAME[R.track][k])
+                        continue;
+                    name = SOUND_NAME[R.track][k];
+                    if (hs >= 0 && k < 4) {
+                        ss_step_t *st = &tr->step[hs];
+                        v = knob_value(k, st->lock[k] ? st->lock[k] - 1 : tr->p[k], b, 0, 127);
+                        st->lock[k] = (uint8_t)(v + 1);
+                        st->flags |= SS_ST_ON;
+                        R.step_edited = 1;
+                    } else {
+                        v = tr->p[k] = (uint8_t)knob_value(k, tr->p[k], b, 0, 127);
+                    }
+                    R.smk_shown = (uint8_t)(k + 1);
+                } else if (k < SS_SMK_KNOBS) {   /* K9..K16: the LFO, then the channel strip */
+                    static const char *const NM[8] = {"LFO RATE", "LFO SHAPE", "LFO DEST", "LFO DEPTH", "TONE", "BITS", "RATE", "DUCK"};
+                    static const uint8_t HI[8] = {9, 4, 7, 127, 127, 127, 127, 127};
+                    uint8_t *f[8];
+                    f[0] = &tr->lfo_rate; f[1] = &tr->lfo_shape; f[2] = &tr->lfo_dest; f[3] = &tr->lfo_depth;
+                    f[4] = &tr->tone; f[5] = &tr->bits; f[6] = &tr->rate; f[7] = &tr->sc;
+                    v = *f[k - 8] = (uint8_t)knob_value(k, *f[k - 8], b, 0, HI[k - 8]);
+                    name = NM[k - 8];
+                } else {
+                    for (k = 0; k < SS_SMK_FADERS && m->fader_cc[k] != a; k++) {}
+                    if (k < SS_TRACKS) {   /* F1..F6: the tracks' levels; F7, F8: the delay's and reverb's returns */
+                        v = PAT->tr[k].level = b;
+                        name = TRACK_NAME[k];
+                    } else if (k < SS_SMK_FADERS) {
+                        v = *(k == 6 ? &R.prj.dly_ret : &R.prj.rev_ret) = b;
+                        name = k == 6 ? "D.RET" : "R.RET";
+                    }
+                }
+            }
+            if (!name)
+                continue;
+            R.smk_seen = 1;
+            val[0] = 0;
+            cat_int(val, v);
+            ss_message(name, val);
+            changed();
+        } else if (kind == MQ_KEY) {    /* ---- the keys: they sounded already; REC writes them down */
+            R.smk_seen = 1;
+            record_hit(R.track, (int)a - 64, b);
+        } else if (kind == MQ_PAD) {    /* ---- the pads */
+            R.smk_seen = 1;
+            if (a < SS_TRACKS) {        /* 1..6: the tracks, played, chosen, recorded with REC */
+                R.track = a;
+                R.eu_armed = 1;
+                record_hit(a, 0, b);
+            } else if (a == 6) {
+                keep_undo();
+                gen_track(R.track);
+                ss_message("NEW", TRACK_NAME[R.track]);
+                changed();
+            } else if (a == 7) {
+                keep_undo();
+                mutate_track(R.track);
+                ss_message("MUTATE", TRACK_NAME[R.track]);
+                changed();
+            } else if (a < 14) {        /* 9..14: mute the tracks */
+                PAT->tr[a - 8].mute ^= 1u;
+                ss_message(PAT->tr[a - 8].mute ? "MUTE" : "ON", TRACK_NAME[a - 8]);
+                changed();
+            } else if (a == 14) {
+                new_groove();
+            } else {
+                undo_pattern();
+            }
+            R.dirty |= STRIP_ALL;
+        }
+    }
+}
+
 void ss_input(uint32_t buttons, uint32_t keys, const int32_t enc[SS_NE], uint32_t now_ms)
 {
     static const uint8_t WK[16] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};
@@ -1863,6 +2468,43 @@ void ss_input(uint32_t buttons, uint32_t keys, const int32_t enc[SS_NE], uint32_
         R.seen_gstep = R.gstep_ui;
         R.dirty |= STRIP_GRID;
     }
+    if (is_mixer() && now_ms - R.meter_t >= 80u) {   /* the meters move: about 12 times a second */
+        R.meter_t = now_ms;
+        R.dirty |= STRIP_GRID;
+    }
+    smk_input(hs);
+    if (R.learn) {                      /* learning the SMK-37: SEL skips a control, SAVE ends, HOME cancels */
+        ss_smk_t *m = &R.prj.smk;
+        if (pressed & 1u << SS_B_SEL) {
+            if (R.learn >= LEARN_KNOB && R.learn < LEARN_FADER)
+                m->knob_cc[R.learn - LEARN_KNOB] = 255;
+            else if (R.learn >= LEARN_FADER)
+                m->fader_cc[R.learn - LEARN_FADER] = 255;
+            R.learn_n = 0;
+            if (++R.learn >= LEARN_END)
+                R.learn = 0;
+        }
+        if (pressed & 1u << SS_B_SAVE) {   /* the rest: nothing */
+            while (R.learn >= LEARN_KNOB && R.learn < LEARN_END) {
+                if (R.learn < LEARN_FADER)
+                    m->knob_cc[R.learn - LEARN_KNOB] = 255;
+                else
+                    m->fader_cc[R.learn - LEARN_FADER] = 255;
+                R.learn++;
+            }
+            R.learn = 0;
+            m->on = 1;
+            ss_message("LEARNED", "MAXI");
+            changed();
+        }
+        if (pressed & 1u << SS_B_HOME) {
+            R.prj.smk = R.learn_bak;
+            R.learn = 0;
+            ss_message("LEARN", "CANCELLED");
+        }
+        R.dirty |= STRIP_ALL;
+        return;
+    }
 
     /* transport and pages */
     if (pressed & 1u << SS_B_PLAY) {
@@ -1873,22 +2515,28 @@ void ss_input(uint32_t buttons, uint32_t keys, const int32_t enc[SS_NE], uint32_
         R.dirty |= STRIP_ALL;
     }
     {
-        static const uint8_t PAGE_BTN[SS_NPAGES] = {SS_B_HOME, SS_B_EDIT, SS_B_ENV, SS_B_FX, SS_B_GLO,
-                                                  SS_B_SEQ, SS_B_FX, SS_B_SEQ, SS_B_SEQ, SS_B_EDIT, SS_B_ENV, SS_B_GLO};
-        uint8_t was = R.page;
-        for (i = 0; i < SS_PG_EUCLID; i++)
-            if (pressed & 1u << PAGE_BTN[i]) {
-                R.page = (uint8_t)i;
+        /* a button opens its first page; again, the next of its pages: EDIT SOUND, SOUND 2, MOD; ENV MIX, CHANNEL,
+         * MASTER; FX FX, SIDECHAIN; GLO GLOBAL, GLOBAL 2, SMK-37 */
+        static const uint8_t RING[4][4] = {{SS_B_EDIT, SS_PG_SOUND, SS_PG_SOUND2, SS_PG_MOD},
+                                           {SS_B_ENV, SS_PG_MIX, SS_PG_CHAN, SS_PG_MASTER},
+                                           {SS_B_FX, SS_PG_FX, SS_PG_SC, SS_PG_SC},
+                                           {SS_B_GLO, SS_PG_GLOBAL, SS_PG_GLOBAL2, SS_PG_SMK}};
+        int r2, q;
+        if (pressed & 1u << SS_B_HOME) {
+            R.page = SS_PG_HOME;
+            R.dirty |= STRIP_ALL;
+        }
+        for (r2 = 0; r2 < 4; r2++)
+            if (pressed & 1u << RING[r2][0]) {
+                uint8_t next = RING[r2][1];
+                for (q = 1; q < 4; q++)
+                    if (R.page == RING[r2][q] && !(q == 2 && RING[r2][2] == RING[r2][3]))
+                        next = RING[r2][q == 3 ? 1 : q + 1];
+                if (r2 == 2 && R.page == SS_PG_SC)
+                    next = SS_PG_FX;
+                R.page = next;
                 R.dirty |= STRIP_ALL;
             }
-        if ((pressed & 1u << SS_B_FX) && was == SS_PG_FX)
-            R.page = SS_PG_SC;          /* FX again: the sidechain */
-        if ((pressed & 1u << SS_B_EDIT) && was == SS_PG_SOUND)
-            R.page = SS_PG_SOUND2;      /* EDIT again: the sound's other four knobs */
-        if ((pressed & 1u << SS_B_ENV) && was == SS_PG_MIX)
-            R.page = SS_PG_BITS;        /* ENV again: the track's 8-bit crusher */
-        if ((pressed & 1u << SS_B_GLO) && was == SS_PG_GLOBAL)
-            R.page = SS_PG_GLOBAL2;     /* GLO again: the pattern's key, the drive */
     }
     if (pressed & 1u << SS_B_SEQ) {   /* back to the steps, and the page that spreads them */
         R.keys_mode = 0;
@@ -2026,13 +2674,28 @@ void ss_input(uint32_t buttons, uint32_t keys, const int32_t enc[SS_NE], uint32_
         R.step_edited = 1;
         ss_message("STEP", "PLAIN");
         changed();
+    } else if ((pressed & 1u << SS_B_SEL) && R.page == SS_PG_SMK) {   /* the SMK-37 page: SEL learns its map */
+        int k;
+        R.learn_bak = R.prj.smk;
+        for (k = 0; k < SS_SMK_KNOBS; k++)
+            R.prj.smk.knob_cc[k] = 255;
+        for (k = 0; k < SS_SMK_FADERS; k++)
+            R.prj.smk.fader_cc[k] = 255;
+        R.prj.smk.knob_rel = 0;
+        R.learn = LEARN_KEY;
+        R.learn_n = 0;
+        R.dirty |= STRIP_ALL;
     } else if (pressed & 1u << SS_B_SEL) {
         keep_undo();
         gen_track(R.track);
         ss_message("NEW", TRACK_NAME[R.track]);
         changed();
     }
-    if (pressed & 1u << SS_B_ARP) {
+    if ((pressed & 1u << SS_B_ARP) && R.page == SS_PG_SMK) {   /* ARP there: the factory map again */
+        smk_preset(&R.prj.smk);
+        ss_message("SMK-37", "FACTORY");
+        changed();
+    } else if (pressed & 1u << SS_B_ARP) {
         keep_undo();
         mutate_track(R.track);
         ss_message("MUTATE", TRACK_NAME[R.track]);
@@ -2172,19 +2835,9 @@ void ss_input(uint32_t buttons, uint32_t keys, const int32_t enc[SS_NE], uint32_
                 rotate_track(R.track, i == 8 ? 1 : -1);
                 changed();
             } else if (i == 9) {
-                int k;
-                keep_undo();
-                for (k = 0; k < SS_TRACKS; k++)
-                    gen_track(k);
-                ss_message("NEW", "GROOVE");
-                changed();
-            } else if (R.undo_ok && R.undo_pat == R.prj.cur_pat) {
-                static ss_pattern_t now;      /* (static: not on a small stack) */
-                now = *PAT;
-                *PAT = R.undo;
-                R.undo = now;           /* undo again: redo */
-                ss_message("UNDO", "");
-                changed();
+                new_groove();
+            } else {
+                undo_pattern();
             }
         }
     }
@@ -2202,7 +2855,8 @@ void ss_lights(uint32_t *buttons, uint32_t *keys, uint32_t *dim_buttons, uint32_
     static const uint8_t WK[16] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};
     static const uint8_t BK[11] = {1, 3, 5, 8, 10, 13, 15, 17, 20, 22, 25};
     static const uint8_t PAGE_BTN[SS_NPAGES] = {SS_B_HOME, SS_B_EDIT, SS_B_ENV, SS_B_FX, SS_B_GLO,
-                                                  SS_B_SEQ, SS_B_FX, SS_B_SEQ, SS_B_SEQ, SS_B_EDIT, SS_B_ENV, SS_B_GLO};
+                                                  SS_B_SEQ, SS_B_FX, SS_B_SEQ, SS_B_SEQ, SS_B_EDIT, SS_B_ENV, SS_B_GLO,
+                                                  SS_B_EDIT, SS_B_ENV, SS_B_GLO};
     const ss_track_t *tr = &PAT->tr[R.track];
     uint32_t b = 1u << PAGE_BTN[R.page], k = 0, dk = 0;
     int i;
@@ -2263,8 +2917,16 @@ int ss_state(int what)
     case SS_Q_POS: return R.pos[R.track];
     case SS_Q_SOLO: return R.solo;
     case SS_Q_CURSOR: return R.cursor;
+    case SS_Q_MAXI: return R.prj.smk.on && R.smk_seen;
+    case SS_Q_LEARN: return R.learn;
     case SS_Q_HITS + 0: case SS_Q_HITS + 1: case SS_Q_HITS + 2: case SS_Q_HITS + 3: case SS_Q_HITS + 4:
     case SS_Q_HITS + 5: return (int)R.hits[what - SS_Q_HITS];
     default: return -1;
     }
 }
+
+#if SS_SIZE_POP == 1
+#pragma clang attribute pop
+#elif SS_SIZE_POP == 2
+#pragma GCC pop_options
+#endif

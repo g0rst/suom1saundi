@@ -29,7 +29,7 @@ enum { SS_B_FX, SS_B_SEL, SS_B_ENV, SS_B_LFO, SS_B_EDIT, SS_B_GLO, SS_B_HOME, SS
 enum { SS_E_SELECT, SS_E_ALGO, SS_E_PRESET, SS_E_K1, SS_E_K2, SS_E_K3, SS_E_K4, SS_NE };
 
 enum { SS_PG_HOME, SS_PG_SOUND, SS_PG_MIX, SS_PG_FX, SS_PG_GLOBAL, SS_PG_EUCLID, SS_PG_SC, SS_PG_LINK, SS_PG_TIMING,
-       SS_PG_SOUND2, SS_PG_BITS, SS_PG_GLOBAL2, SS_NPAGES };
+       SS_PG_SOUND2, SS_PG_CHAN, SS_PG_GLOBAL2, SS_PG_MOD, SS_PG_MASTER, SS_PG_SMK, SS_NPAGES };
 
 /* step flags */
 #define SS_ST_ON 0x80u
@@ -43,8 +43,7 @@ typedef struct {
     int8_t note;                        /* semitones from the track's base note */
     int8_t shift;                       /* microtiming, -8..8: sixteenths of a step early or late */
     uint8_t lock[4];                    /* a sound parameter for this step alone: 0 none, else value + 1 */
-    uint8_t rsv;
-} ss_step_t;
+} ss_step_t;                            /* 7 bytes: 16 x 6 x 4 of them are most of the project */
 
 typedef struct {
     ss_step_t step[SS_STEPS];
@@ -53,6 +52,9 @@ typedef struct {
     uint8_t p[8];                       /* the sound's parameters, 0..127: pages SOUND and SOUND 2 */
     uint8_t level, pan, dly, rev;       /* 0..127 */
     uint8_t bits, rate;                 /* the 8-bit part: 0 off .. 127 fewest bits, lowest sample rate */
+    uint8_t tone;                       /* the channel's filter: 64 flat, below a low-pass, above a high-pass */
+    uint8_t lfo_rate, lfo_shape;        /* the MOD page: 0..9 (1/16 .. 4 bars), 0..4 (SIN TRI SAW SQR RND) */
+    uint8_t lfo_dest, lfo_depth;        /* the sound parameter it moves at each hit (0..7), 64: none, below: inverted */
     uint8_t eu_hits, eu_rot;            /* the EUCLID page: hits spread over the loop, rotated */
     uint8_t eu_prob;                    /* 0..3: 25, 50, 75, 100 % for all of them */
     uint8_t eu_acc;                     /* 0: none; n: every n-th hit accented */
@@ -65,8 +67,26 @@ typedef struct {
 typedef struct {
     ss_track_t tr[SS_TRACKS];
     int8_t xpose;                       /* -12..12 semitones: with CHAIN, the key changes */
-    uint8_t rsv[3];
+    uint8_t chord;                      /* 0..6: the chord's root as a degree of the scale; the generator builds on it */
+    uint8_t rsv[2];
 } ss_pattern_t;
+
+/* MAXI: an M-VAVE SMK-37 (Pro or Elite) plays and turns the FM-1 over MIDI (the TRS jack, USB). What each of its
+ * controls sends is set in its MIDI SUITE; the FM-1 takes the factory map below, or learns another (GLO x3, SEL) */
+#define SS_SMK_KNOBS 16                 /* K1..K8 and, with KNOB BANK, K9..K16 */
+#define SS_SMK_FADERS 8                 /* F1..F4 and, with FADER BANK, F5..F8 */
+#define SS_SMK_PADS 16
+typedef struct {
+    uint8_t on;                         /* 1: MAXI */
+    uint8_t key_ch, key_base;           /* the keys: channel 0..15, the note that plays a track's base note */
+    uint8_t pad_ch, pad_note;           /* the pads: channel, the first pad's note (16 notes on from it) */
+    uint8_t cc_ch;                      /* knobs and faders: channel */
+    uint8_t knob_cc[SS_SMK_KNOBS];      /* 255: none */
+    uint8_t fader_cc[SS_SMK_FADERS];
+    uint16_t knob_rel;                  /* bit k: knob k sends steps, not positions */
+    uint8_t rel_kind;                   /* steps as 1 / 127 (0), or as 65 / 63 (1) */
+    uint8_t rsv;
+} ss_smk_t;
 
 typedef struct {
     uint32_t magic;                     /* SS_MAGIC */
@@ -85,12 +105,16 @@ typedef struct {
     uint8_t sc_src;                     /* the track whose hits duck the others (muted, it still does) */
     uint8_t sc_rel;                     /* 0..127: how fast the ducking lets go */
     uint8_t drive;                      /* 0..127: into the soft clipper on the sum */
+    uint8_t dly_ret, rev_ret;           /* the MASTER page: the effects' returns, 0..127 */
+    uint8_t width;                      /* stereo width: 0 mono, 64 as it is, 127 wide */
+    uint8_t rsv;
+    ss_smk_t smk;
     ss_pattern_t pat[SS_PATTERNS];
     uint32_t sum;                       /* over everything before it */
 } ss_project_t;
 
 #define SS_MAGIC 0x314F5553u          /* "SUO1" */
-#define SS_VERSION 1u
+#define SS_VERSION 2u
 
 /* ---- life cycle ---- */
 void ss_init(uint32_t seed);          /* tables, defaults and a first groove generated from seed */
@@ -99,9 +123,12 @@ void ss_panic(void);                  /* silence now */
 /* ---- audio context ---- */
 /* n stereo frames of signed 24-bit samples (Q23 in int32), at gain_q12 (0..4096) */
 void ss_render(int32_t *lr, uint32_t n, uint32_t gain_q12);
-/* a MIDI note: channels 1..6 play the tracks (note 60 = the step's base note), channel 10 a drum map */
+/* a MIDI note (channel 0..15). MAXI on: the SMK-37's keys play the chosen track, its pads are pads. Otherwise, and on
+ * the other channels: channels 1..6 play the tracks (note 60 = the step's base note), channel 10 a drum map */
 void ss_midi_note(uint32_t channel, uint32_t note, uint32_t velocity);
 void ss_midi_transport(int start);    /* MIDI start / stop in */
+void ss_midi_cc(uint32_t channel, uint32_t cc, uint32_t value);   /* channel 0..15 */
+void ss_midi_bend(uint32_t channel, int value);   /* -8192..8191 */
 int ss_midi_rt_pop(void);             /* a real-time byte to send (0xF8, 0xFA, 0xFC), or -1 */
 
 /* ---- main loop ---- */
@@ -120,7 +147,7 @@ int ss_save_wanted(void);             /* 1 once after SAVE: the platform writes 
 /* ---- for tests and the simulator ---- */
 int ss_state(int what);
 enum { SS_Q_PLAYING, SS_Q_TRACK, SS_Q_PAGE, SS_Q_BPM, SS_Q_GSTEP, SS_Q_PATTERN, SS_Q_KEYS_MODE,
-       SS_Q_LEN, SS_Q_STEPS_ON, SS_Q_MUTE, SS_Q_UNSAVED, SS_Q_POS, SS_Q_SOLO, SS_Q_CURSOR,
+       SS_Q_LEN, SS_Q_STEPS_ON, SS_Q_MUTE, SS_Q_UNSAVED, SS_Q_POS, SS_Q_SOLO, SS_Q_CURSOR, SS_Q_MAXI, SS_Q_LEARN,
        SS_Q_HITS = 100 };            /* + track: hits sounded since PLAY */
 ss_project_t *ss_project(void);
 

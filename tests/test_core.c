@@ -459,7 +459,7 @@ int main(int argc, char **argv)
     write_screen(path);
     tap_button(SS_B_ENV);
     tap_button(SS_B_ENV);
-    CHECK(ss_state(SS_Q_PAGE) == SS_PG_BITS, "ENV twice: page %d", ss_state(SS_Q_PAGE));
+    CHECK(ss_state(SS_Q_PAGE) == SS_PG_CHAN, "ENV twice: page %d", ss_state(SS_Q_PAGE));
     tap_button(SS_B_GLO);
     tap_button(SS_B_GLO);
     CHECK(ss_state(SS_Q_PAGE) == SS_PG_GLOBAL2, "GLO twice: page %d", ss_state(SS_Q_PAGE));
@@ -501,11 +501,151 @@ int main(int argc, char **argv)
         CHECK(same[0] && !same[1], "SEKO: off the same %u, on the same %u", same[0], same[1]);
     }
 
-    /* MIDI: channel 1 plays the kick */
+    /* MIDI: channel 1 (the SMK-37's keys) plays the chosen track, the kick */
     ss_init(3);
     ss_midi_note(0, 60, 127);
     run(0.2, 0, &peak, 0);
     CHECK(peak > 0.2, "MIDI note: peak %f", peak);
+
+    /* the generator: every note of the melodic tracks in the scale (phrygian dominant from the factory); the
+     * patterns carry a progression; the lines are more than one note, and differ from seed to seed */
+    {
+        static const int PHRDOM[12] = {1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0};
+        int seed, a, t, bad = 0, chords = 0, flat = 0;
+        uint32_t lines = 0, last = 0;
+        for (seed = 0; seed < 30; seed++) {
+            ss_init(500u + (uint32_t)seed * 31u);
+            for (a = 0; a < SS_PATTERNS; a++) {
+                chords |= 1 << ss_project()->pat[a].chord;
+                for (t = SS_BASSO; t <= SS_OUTO; t++) {
+                    const ss_track_t *tr = &ss_project()->pat[a].tr[t];
+                    int distinct = 0, seen[128] = {0};
+                    uint32_t h = 2166136261u;
+                    if (t == SS_HATTU)
+                        continue;
+                    for (i = 0; i < SS_STEPS; i++)
+                        if (tr->step[i].flags & SS_ST_ON) {
+                            int nn = tr->step[i].note;
+                            bad += !PHRDOM[((nn % 12) + 12) % 12];
+                            if (!seen[nn + 64]++) distinct++;
+                            h = (h ^ (uint32_t)(nn + 64)) * 16777619u;
+                        }
+                    if (t != SS_BASSO && t != SS_OUTO && distinct < 2)
+                        flat++;
+                    if (t == SS_HAPPO && a == 0) {
+                        lines += h != last;
+                        last = h;
+                    }
+                }
+            }
+        }
+        CHECK(bad == 0, "generator: %d notes off the scale", bad);
+        CHECK(flat < 6, "generator: %d acid or melody lines of a single note", flat);
+        CHECK(lines >= 25, "generator: only %u different acid lines in 30 seeds", lines);
+        CHECK(chords != 1, "generator: the patterns have no progression (chords %x)", chords);
+    }
+
+    /* the mixer: ENV three times MASTER; WIDTH 0 is mono; TONE darkens; the meters move */
+    ss_init(40);
+    tap_button(SS_B_ENV); tap_button(SS_B_ENV); tap_button(SS_B_ENV);
+    CHECK(ss_state(SS_Q_PAGE) == SS_PG_MASTER, "ENV x3: page %d", ss_state(SS_Q_PAGE));
+    tap_button(SS_B_ENV);
+    CHECK(ss_state(SS_Q_PAGE) == SS_PG_MIX, "ENV x4: page %d", ss_state(SS_Q_PAGE));
+    ss_project()->width = 0;
+    tap_button(SS_B_PLAY);
+    {
+        int32_t b2[256];
+        int diff = 0, j;
+        for (j = 0; j < 200; j++) {
+            ss_render(b2, 128, 4096);
+            for (i = 0; i < 128; i++) diff |= b2[2 * i] != b2[2 * i + 1];
+        }
+        CHECK(!diff, "WIDTH 0 is not mono");
+    }
+    snprintf(path, sizeof path, "%s/screen-mixer.ppm", out);
+    frame(0);
+    write_screen(path);
+    {
+        double bright = 0, dark = 0;
+        int v2, t;
+        for (v2 = 0; v2 < 2; v2++) {
+            int32_t b3[256];
+            double sum = 0, prev = 0;
+            int j;
+            ss_init(41);
+            ss_project()->seko = 0;
+            for (t = 0; t < SS_TRACKS; t++) ss_project()->pat[0].tr[t].tone = v2 ? 10 : 64;
+            tap_button(SS_B_PLAY);
+            for (j = 0; j < 1000; j++) {      /* the energy of the difference: high frequencies */
+                ss_render(b3, 128, 4096);
+                for (i = 0; i < 128; i++) { double x = b3[2 * i] / 8388608.0; sum += (x - prev) * (x - prev); prev = x; }
+            }
+            if (v2) dark = sum; else bright = sum;
+        }
+        CHECK(dark < bright * 0.5, "TONE LP: %f against %f", dark, bright);
+    }
+
+    /* MOD: an LFO on BASSO's cutoff changes the sound */
+    {
+        uint32_t a1, a2;
+        ss_init(42); ss_project()->seko = 0; tap_button(SS_B_PLAY); a1 = run(3.0, 0, 0, 0);
+        ss_init(42); ss_project()->seko = 0;
+        ss_project()->pat[0].tr[SS_BASSO].lfo_depth = 127;
+        ss_project()->pat[0].tr[SS_BASSO].lfo_rate = 3;
+        tap_button(SS_B_PLAY); a2 = run(3.0, 0, 0, 0);
+        CHECK(a1 != a2, "the LFO changed nothing");
+        tap_button(SS_B_EDIT); tap_button(SS_B_EDIT); tap_button(SS_B_EDIT);
+        CHECK(ss_state(SS_Q_PAGE) == SS_PG_MOD, "EDIT x3: page %d", ss_state(SS_Q_PAGE));
+    }
+
+    /* MAXI with the factory map: K1 on BASSO, F2 its level, pad 10 mutes it, the keys sound, the mod wheel SEKO */
+    ss_init(43);
+    CHECK(ss_state(SS_Q_MAXI) == 0, "MAXI before any SMK-37 message");
+    tap_key(3);                                     /* BASSO */
+    ss_midi_cc(0, 20, 5); frame(0);
+    CHECK(ss_project()->pat[0].tr[SS_BASSO].p[0] == 5 && ss_state(SS_Q_MAXI) == 1, "K1: cutoff %d",
+          ss_project()->pat[0].tr[SS_BASSO].p[0]);
+    ss_midi_cc(0, 27, 127); frame(0);
+    CHECK(ss_project()->pat[0].tr[SS_BASSO].p[7] == 127, "K8: drive %d", ss_project()->pat[0].tr[SS_BASSO].p[7]);
+    ss_midi_cc(0, 42, 33); frame(0);
+    CHECK(ss_project()->pat[0].tr[SS_BASSO].level == 33, "F2: level %d", ss_project()->pat[0].tr[SS_BASSO].level);
+    ss_midi_note(9, 36 + 9, 100); frame(0);
+    CHECK(ss_project()->pat[0].tr[SS_BASSO].mute == 1, "pad 10 did not mute BASSO");
+    ss_midi_note(9, 36 + 4, 100); frame(0);
+    CHECK(ss_state(SS_Q_TRACK) == SS_PIIP, "pad 5: track %d", ss_state(SS_Q_TRACK));
+    ss_midi_cc(0, 1, 99); frame(0);
+    CHECK(ss_project()->seko == 99, "mod wheel: SEKO %d", ss_project()->seko);
+    tap_button(SS_B_EDIT);
+    snprintf(path, sizeof path, "%s/screen-maxi.ppm", out);
+    write_screen(path);
+    ss_midi_note(0, 72, 120);
+    run(0.3, 0, &peak, 0);
+    CHECK(peak > 0.05, "a key on the SMK-37 played nothing: %f", peak);
+
+    /* learning: GLO x3, SEL; a key, a pad, a knob that sends positions, one that sends steps; SAVE ends */
+    ss_init(44);
+    tap_button(SS_B_GLO); tap_button(SS_B_GLO); tap_button(SS_B_GLO);
+    CHECK(ss_state(SS_Q_PAGE) == SS_PG_SMK, "GLO x3: page %d", ss_state(SS_Q_PAGE));
+    tap_button(SS_B_SEL);
+    CHECK(ss_state(SS_Q_LEARN) == 1, "SEL did not start learning");
+    snprintf(path, sizeof path, "%s/screen-learn.ppm", out);
+    write_screen(path);
+    ss_midi_note(2, 48, 90); frame(0);
+    ss_midi_note(3, 60, 90); frame(0);
+    ss_midi_cc(4, 70, 10); ss_midi_cc(4, 70, 11); ss_midi_cc(4, 70, 12); frame(0);
+    ss_midi_cc(4, 71, 1); ss_midi_cc(4, 71, 1); ss_midi_cc(4, 71, 1); frame(0);
+    tap_button(SS_B_SAVE);
+    {
+        const ss_smk_t *m = &ss_project()->smk;
+        CHECK(ss_state(SS_Q_LEARN) == 0 && m->key_ch == 2 && m->key_base == 48 && m->pad_ch == 3 && m->pad_note == 60 &&
+              m->cc_ch == 4 && m->knob_cc[0] == 70 && m->knob_cc[1] == 71 && m->knob_cc[2] == 255 &&
+              m->knob_rel == 2 && m->rel_kind == 0 && m->fader_cc[0] == 255,
+              "learned: keys %d/%d pads %d/%d cc ch %d knobs %d %d %d rel %x/%d", m->key_ch, m->key_base, m->pad_ch,
+              m->pad_note, m->cc_ch, m->knob_cc[0], m->knob_cc[1], m->knob_cc[2], m->knob_rel, m->rel_kind);
+        v = ss_project()->pat[0].tr[0].p[1];
+        ss_midi_cc(4, 71, 127); frame(0);
+        CHECK(ss_project()->pat[0].tr[0].p[1] == v - 2, "a knob that steps: %d, was %d", ss_project()->pat[0].tr[0].p[1], v);
+    }
 
     printf(fails ? "%d FAILED\n" : "all tests passed\n", fails);
     return fails != 0;

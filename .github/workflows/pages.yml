@@ -24,9 +24,19 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: clang and wasm-ld
-        run: sudo apt-get install -y -qq clang lld
-      - name: Core tests
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: clang, wasm-ld, Pillow with raqm (fm1-base's fonts)
+        run: |
+          sudo apt-get install -y -qq clang lld libfribidi0
+          python3 -m pip install -q pillow
+          python3 -c "from PIL import features; assert features.check('raqm'), 'Pillow without raqm'"
+      - name: fm1-base's host simulator (the FM-1 glue, fm1.toml checked)
+        run: ./build.sh --host
+      - name: Core tests and the simulator's script
         run: sh tests/run_tests.sh
       - name: Browser emulator
         run: sh sim/build.sh
