@@ -8,7 +8,7 @@
 #   ./build.sh --board smk37 [--model pro|elite|mke] [...]
 #                              the same for the M-VAVE SMK-37: app/build/smk37/suom1saundi-smk37.fwsc
 #                              (smk37-port.yaml). fm1-base has no SMK-37 support of its own yet: the build copies
-#                              base/ to app/build/.base-smk37/ and applies smk37/fm1-base.patch there, so base/ and
+#                              base/ (its commit) to app/build/.base-smk37/ and applies smk37/fm1-base.patch there, so base/ and
 #                              the FM-1 build stay as they are.
 # The browser test page is built by sim/build.sh, the core's own tests by tests/run_tests.sh.
 set -e
@@ -25,13 +25,15 @@ if [ "$board" = "fm1" ]; then
     exec python3 base/tools/build.py app "$@"
 fi
 [ "$board" = "smk37" ] || { echo "--board $board: fm1 or smk37" >&2; exit 1; }
-# a fresh copy whenever base/ or the patch changed
+# a fresh copy of base/ and base/bsp/ at their commits, whenever they or the patch changed
 stamp="$(git -C base rev-parse HEAD 2>/dev/null)-$(git -C base/bsp rev-parse HEAD 2>/dev/null)-$(cksum < smk37/fm1-base.patch)"
 dst=app/build/.base-smk37
 if [ ! -f "$dst/.stamp" ] || [ "$(cat "$dst/.stamp")" != "$stamp" ]; then
     rm -rf "$dst"
     mkdir -p "$dst"
-    (cd base && tar cf - --exclude=.git .) | (cd "$dst" && tar xf -)
+    git -C base archive HEAD | tar xf - -C "$dst"            # (the committed trees: base/'s own edits never leak in)
+    rm -rf "$dst/bsp" && mkdir -p "$dst/bsp"
+    git -C base/bsp archive HEAD | tar xf - -C "$dst/bsp"
     patch -s -p1 -d "$dst" < smk37/fm1-base.patch
     printf '%s' "$stamp" > "$dst/.stamp"
 fi
