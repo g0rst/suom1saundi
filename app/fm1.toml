@@ -1,0 +1,20 @@
+# suom1saundi's build settings (base/tools/build.py)
+name = "SUOM1SAUNDI"             # names the build's files: app/build/suom1saundi.fwsc
+title = "suom1saundi"
+id_prefix = "FM-1_53"        # package identity: dev FM-1_5300, releases FM-1_53XXYYZZ
+usb_manufacturer = "g0rst"
+usb_product = "suom1saundi FM-1"
+o2 = ["core/suomi.c"]           # the instrument: its own unit at -O2
+o2_cflags = ["-DSS_FM1_POOL"]   # its delay and reverb lines in the .pool RAM region
+words = "words.tsv"
+ble = false                    # no radio: nothing of JieLi's is linked
+tagline = "suomisaundi groovebox: psy kick, acid, 8-bit"
+repo = "https://github.com/g0rst/suom1saundi"
+licence = "MIT"
+credits = "Built on fm1-base and felucca-bsp (MPL-2.0); sequencer and UI from ro:MINImal; 8-bit ideas from memetek-fm1; acid ideas from neur0psy."
+author = "g0rst"
+description = "A six-voice groovebox for suomisaundi (Finnish freestyle psytrance): psy kick, acid bass, hats with an 8-bit noise channel, a 303-style acid line, a sound-chip lead with arpeggios and an FM zap voice, on a polymetric step sequencer with chance, slides, SEKO (the pattern played a little differently each time) and a groove generator; an 8-bit crusher per track, tempo delay, reverb and kick ducking."
+tags = ["groovebox", "synth", "sequencer", "psytrance", "chiptune"]
+install = "https://github.com/g0rst/suom1saundi"
+site = "https://g0rst.github.io/suom1saundi/"
+screenshot = "docs/screen.png"

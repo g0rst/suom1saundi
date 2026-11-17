@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>suom1saundi – FM-1 Emulator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap">
+<style>
+/* One visual world: the instrument's own panel. A cool concrete-grey enclosure, charcoal controls, the dark
+   screen, and the screen's orange as the only accent (LEDs, playhead). Layout: the FM-1's own arrangement
+   from 760px (knob cluster and OCT left, screen in the middle, KNOB1-4 over two rows of six buttons right, keys
+   below); at phone width the same groups stacked, the screen first. */
+:root {
+  color-scheme: light;
+  --panel: #cdd1d2;
+  --panel-edge: #b3b8ba;
+  --ink: #1d2022;
+  --ink-soft: #565c60;
+  --cap: #2a2d2f;
+  --cap-text: #e4e0d4;
+  --led: #ff28c8;
+  --led-dim: #6e2a5c;
+  --screen: #000;
+  --font: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: #e9ebeb; color: var(--ink);
+  font-family: var(--font); font-size: 16px; line-height: 1.4;
+}
+.wrap { max-width: 980px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px 24px; }
+h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: .01em; line-height: 1.1; }
+h1 span { color: var(--led); font-weight: 700; }
+a { color: #b0128a; }
+header p { margin: 0; color: var(--ink-soft); max-width: 58ch; }
+.status { font-weight: 600; color: var(--ink); }
+
+.unit {
+  background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 14px;
+  padding: 14px; display: grid; gap: 14px; grid-template-columns: 1fr;
+  box-shadow: 0 1px 0 #fff inset, 0 10px 24px -14px rgba(0, 0, 0, .45);
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+.left, .mid, .right { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.mid { order: -1; }
+.bezel { background: #111; border-radius: 8px; padding: 8px; }
+canvas { display: block; width: 100%; aspect-ratio: 1; image-rendering: pixelated; background: var(--screen); border-radius: 2px; }
+
+.row { display: grid; gap: 8px; }
+.row.k { grid-template-columns: repeat(4, 1fr); }
+.row.e { grid-template-columns: repeat(4, 1fr); }
+.oct { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-width: 220px; }
+.enc { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.enc .name { font-size: 12px; font-weight: 600; letter-spacing: .06em; color: var(--ink-soft); }
+.dial {
+  width: 46px; height: 46px; border-radius: 50%; background: var(--cap); position: relative;
+  touch-action: none; cursor: ns-resize; border: 0; padding: 0;
+  box-shadow: 0 2px 0 #0b0c0d, 0 0 0 3px var(--panel-edge);
+}
+.dial i { position: absolute; left: 50%; top: 5px; width: 3px; height: 12px; margin-left: -1.5px; background: var(--cap-text); border-radius: 2px; }
+.pm { display: flex; gap: 4px; }
+.pm button {
+  width: 34px; height: 30px; border: 0; border-radius: 6px; background: #eef0f0; color: var(--ink);
+  font: 700 18px/1 var(--font); touch-action: manipulation; cursor: pointer;
+  box-shadow: 0 1px 0 var(--panel-edge);
+}
+.pm button:active { background: #fff; transform: translateY(1px); }
+
+.btns { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.btn {
+  border: 0; border-radius: 6px; background: var(--cap); color: var(--cap-text); padding: 7px 2px 6px;
+  font: 600 13px/1.1 var(--font); letter-spacing: .03em; touch-action: none; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0;
+  box-shadow: 0 2px 0 #0b0c0d;
+}
+.btn small { font-size: 10.5px; font-weight: 500; color: #9aa0a3; letter-spacing: 0; }
+.btn::before { content: ""; width: 14px; height: 4px; border-radius: 2px; background: #45494c; }
+.btn.dim::before { background: var(--led-dim); }
+.btn.on::before { background: var(--led); box-shadow: 0 0 6px var(--led); }
+.btn.down { transform: translateY(2px); box-shadow: none; }
+
+.keys { display: flex; flex-wrap: wrap; gap: 8px; grid-column: 1 / -1; }
+.block { position: relative; flex: 1 1 300px; height: 132px; display: flex; gap: 3px; }
+.key { border: 0; padding: 0; font-family: var(--font); touch-action: none; cursor: pointer; }
+.key.w {
+  flex: 1; background: #f3f4f2; border-radius: 0 0 6px 6px; position: relative; color: var(--ink-soft);
+  font-size: 13px; font-weight: 600; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px;
+  box-shadow: 0 2px 0 var(--panel-edge);
+}
+.key.b {
+  position: absolute; top: 0; width: 10.6%; height: 76px; background: var(--cap); color: var(--cap-text);
+  border-radius: 0 0 5px 5px; font-size: 10px; font-weight: 600; letter-spacing: 0; overflow: hidden;
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 5px; z-index: 1;
+  box-shadow: 0 2px 0 #0b0c0d;
+}
+.key::before { content: ""; position: absolute; top: 6px; left: 50%; margin-left: -4px; width: 8px; height: 8px; border-radius: 50%; background: #c9cdcd; }
+.key.w::before { top: auto; bottom: 30px; }
+.key.b::before { background: #45494c; }
+.key.dim::before { background: var(--led-dim); }
+.key.on::before { background: var(--led); box-shadow: 0 0 7px var(--led); }
+.key.w.down { background: #dfe2e0; }
+.key.b.down { background: #000; }
+.key.w.beat { color: var(--ink); }
+
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.sound {
+  border: 0; border-radius: 8px; padding: 10px 16px; background: var(--ink); color: #fff;
+  font: 600 16px/1 var(--font); cursor: pointer;
+}
+.sound.live { background: var(--led); color: #1d1206; }
+label { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; color: var(--ink-soft); }
+input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--ink); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--led); outline-offset: 2px; }
+
+.help { display: grid; gap: 4px 28px; grid-template-columns: 1fr; }
+.help h2 { grid-column: 1 / -1; margin: 0; font-size: 18px; font-weight: 700; }
+.help ul { margin: 0; padding-left: 18px; color: var(--ink); }
+.help li { margin: 4px 0; max-width: 60ch; }
+.help b { font-weight: 600; }
+.note { color: var(--ink-soft); margin: 0; max-width: 70ch; }
+#err { display: none; background: #fff; border-left: 4px solid var(--led); padding: 10px 12px; margin: 0; }
+
+@media (min-width: 760px) {
+  .unit { grid-template-columns: 170px minmax(240px, 300px) 1fr; padding: 18px; gap: 16px 18px; align-items: start; }
+  .mid { order: 0; }
+  .row.e { grid-template-columns: 1fr 1fr; gap: 14px 8px; }
+  .right { gap: 18px; }
+  .help { grid-template-columns: 1fr 1fr; }
+  .btn { padding: 10px 2px 8px; font-size: 14px; }
+  .block { height: 150px; }
+  .key.b { height: 88px; }
+}
+@media (prefers-reduced-motion: reduce) { .btn.down, .pm button:active { transform: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>suom<span>1</span>saundi</h1>
+      <p>Emulator der suomisaundi-Firmware für den M-VAVE FM-1. Hier läuft derselbe C-Kern wie im Gerät, im Browser als WebAssembly. Handbuch: <a href="handbuch.html">Deutsch</a> · <a href="manual.html">English</a> · <a href="tlhingan.html">tlhIngan Hol</a></p>
+    </div>
+    <div class="bar">
+      <button class="sound" id="sound" type="button">Ton einschalten</button>
+    </div>
+  </header>
+  <p id="err"></p>
+
+  <div class="unit" id="unit">
+    <div class="left">
+      <div class="row e" id="rowe"></div>
+      <div class="oct" id="oct"></div>
+    </div>
+    <div class="mid">
+      <div class="bezel"><canvas id="lcd" width="240" height="240" aria-label="Display des FM-1, 240 mal 240 Pixel"></canvas></div>
+    </div>
+    <div class="right">
+      <div class="row k" id="rowk"></div>
+      <div class="btns" id="btns"></div>
+    </div>
+    <div class="keys" id="keys"></div>
+  </div>
+  <div class="bar">
+    <label for="hold"><input id="hold" type="checkbox"> Weiße Tasten und SAVE einrasten (für die Maus: halten und dabei drehen)</label>
+  </div>
+
+  <section class="help">
+    <h2>Kurzanleitung</h2>
+    <ul>
+      <li><b>PLAY STOP</b> startet den Groove. Die 16 weißen Tasten sind die Steps der gewählten Spur: tippen schaltet einen Step.</li>
+      <li>Schwarze Tasten links wählen die Spur: POTKU (Kick), BASSO (Bass), HATTU (Hats), HAPPO (Acid), PIIP (8-Bit-Melodie), OUTO (FM-Zaps). Rechts: CLR leert die Spur, ◀ ▶ verschieben sie, NEW würfelt den ganzen Groove neu, UNDO nimmt das zurück.</li>
+      <li>Weiße Taste halten und drehen: <b>KNOB1</b> Note, <b>KNOB2</b> Chance, <b>KNOB3</b> Akzent/Slide (aus, ACC, SLD, A+S), <b>KNOB4</b> Ratchet.</li>
+      <li><b>EDIT</b> Klang der Spur, <b>EDIT</b> nochmal: die anderen vier Klangregler. Dort eine weiße Taste halten und drehen: Parameter-Lock nur für diesen Step.</li>
+      <li><b>ENV</b> Pegel, Pan, Delay, Reverb. <b>ENV</b> nochmal: 8-BIT mit BITS und RATE für die Spur.</li>
+      <li><b>SEQ</b>: Euklid, zweimal LINK, dreimal TIMING. <b>ALGORITHM</b> setzt die Looplänge (1 bis 16).</li>
+    </ul>
+    <ul>
+      <li><b>HOME</b> Tempo, Swing, SEKO, Duck. SEKO (finnisch „verrückt“) lässt den Groove jedes Mal ein bisschen anders spielen.</li>
+      <li><b>GLO</b> Grundton, Skala, MIDI-Clock, Chain. <b>GLO</b> nochmal: XPOSE des Patterns und DRIVE der Summe.</li>
+      <li><b>FX</b> Delay und Reverb, <b>FX</b> nochmal: Sidechain.</li>
+      <li><b>SAVE</b> kurz: speichern (hier im Browser). SAVE halten und <b>PRESETS</b>/<b>SELECT</b> drehen: Pattern oder Spur kopieren.</li>
+      <li><b>PRESETS</b> wechselt Pattern A bis D zum nächsten Takt. <b>SEL</b> erzeugt die Spur neu, <b>ARP</b> verändert sie leicht. <b>LFO</b> kurz: stumm, halten: Solo. <b>REC</b>: Tasten spielen die Spur. Leertaste: PLAY.</li>
+    </ul>
+  </section>
+  <p class="note">Stand: Kern und FM-1-Anbindung laufen in den Host-Tests und im Simulator von fm1-base. Auf einem echten FM-1 wurde die Firmware noch nicht gebaut oder geflasht. Klang und Timing der Hardware können abweichen.</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var WASM = "@@WASM@@";
+  var BTN = ["FX", "SEL", "ENV", "LFO", "EDIT", "GLO", "HOME", "SAVE", "ARP", "SEQ", "PLAY STOP", "REC", "OCT−", "OCT+"];
+  var BTN_SUB = ["FX / SC", "Neu", "Mix / 8-Bit", "Mute", "Sound 1/2", "Global 1/2", "Groove", "Sichern", "Mutate", "Euklid", "Start", "Keys", "Spur −", "Spur +"];
+  /* as on the FM-1: FX SEL ENV LFO EDIT GLO over HOME SAVE ARP SEQ PLAY REC; OCT- OCT+ under the left knobs */
+  var BTN_ORDER = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+  var ENC = ["SELECT", "ALGORITHM", "PRESETS", "KNOB1", "KNOB2", "KNOB3", "KNOB4"];
+  var ENC_ORDER = [-1, 0, 2, 1, 3, 4, 5, 6];   /* MASTER SELECT over PRESETS ALGORITHM; then KNOB1..4 */
+  var vol = 75;
+  var WK = [0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26];
+  var BK = [1, 3, 5, 8, 10, 13, 15, 17, 20, 22, 25];
+  var BK_NAME = ["POTKU", "BASSO", "HATTU", "HAPPO", "PIIP", "OUTO", "CLR", "◀", "▶", "NEW", "UNDO"];
+  /* a black key's place in its block of 8 white keys: the white key it follows (7: the block's right edge) */
+  var BK_AT = [[0, 0], [0, 1], [0, 2], [0, 4], [0, 5], [0, 7], [1, 0], [1, 1], [1, 3], [1, 4], [1, 6]];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var held = { b: 0, k: 0 }, latch = { b: 0, k: 0 }, sticky = 0, stickyB = 0, enc = [0, 0, 0, 0, 0, 0, 0];
+  var btnEl = [], keyEl = [], dialEl = [], masterEl = null, dialTurn = [0, 0, 0, 0, 0, 0, 0];
+  var w = null, mem = null, ctx = null;
+
+  function fail(msg) { var e = $("err"); e.textContent = msg; e.style.display = "block"; }
+
+  /* ---- the panel ---- */
+  function press(kind, bit, el) {
+    return function (ev) {
+      ev.preventDefault();
+      if (kind === "k" && $("hold").checked && el.classList.contains("w")) {   /* latching white keys */
+        var was = sticky & bit;             /* one latched step at a time: another key takes the latch over */
+        WK.forEach(function (k) { keyEl[k].classList.remove("down"); });
+        sticky = was ? 0 : bit;
+        el.classList.toggle("down", sticky !== 0);
+        if (sticky) latch.k |= bit;
+        return;
+      }
+      if (kind === "b" && bit === 1 << 7 && $("hold").checked) {               /* and a latching SAVE, to copy */
+        stickyB ^= bit;
+        el.classList.toggle("down", stickyB !== 0);
+        return;
+      }
+      held[kind] |= bit; latch[kind] |= bit; el.classList.add("down");
+      try { el.setPointerCapture(ev.pointerId); } catch (e) {}
+      audioKick();
+    };
+  }
+  function release(kind, bit, el) {
+    return function () {
+      if (kind === "k" && (sticky & bit)) return;
+      if (kind === "b" && (stickyB & bit)) return;
+      held[kind] &= ~bit; el.classList.remove("down");
+    };
+  }
+  function wire(el, kind, bit) {
+    el.addEventListener("pointerdown", press(kind, bit, el));
+    ["pointerup", "pointercancel", "lostpointercapture"].forEach(function (n) { el.addEventListener(n, release(kind, bit, el)); });
+    el.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  }
+
+  BTN_ORDER.forEach(function (i) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "btn"; b.id = "btn" + i;
+    b.innerHTML = BTN[i] + "<small>" + BTN_SUB[i] + "</small>";
+    wire(b, "b", 1 << i);
+    $(i >= 12 ? "oct" : "btns").appendChild(b); btnEl[i] = b;
+  });
+
+  ENC_ORDER.forEach(function (i) {
+    var name = i < 0 ? "MASTER" : ENC[i];
+    var box = document.createElement("div"); box.className = "enc";
+    var dial = document.createElement("button"); dial.type = "button"; dial.className = "dial"; dial.id = i < 0 ? "master" : "enc" + i;
+    dial.setAttribute("aria-label", name + " drehen: ziehen, oder Minus und Plus");
+    dial.innerHTML = "<i></i>";
+    var y0 = null, acc = 0;
+    dial.addEventListener("pointerdown", function (e) { e.preventDefault(); y0 = e.clientY; acc = 0; try { dial.setPointerCapture(e.pointerId); } catch (x) {} audioKick(); });
+    dial.addEventListener("pointermove", function (e) {
+      if (y0 === null) return;
+      acc += y0 - e.clientY; y0 = e.clientY;
+      while (acc >= 9) { acc -= 9; turn(i, 1); }
+      while (acc <= -9) { acc += 9; turn(i, -1); }
+    });
+    ["pointerup", "pointercancel"].forEach(function (n) { dial.addEventListener(n, function () { y0 = null; }); });
+    dial.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowUp" || e.key === "ArrowRight") { turn(i, 1); e.preventDefault(); }
+      if (e.key === "ArrowDown" || e.key === "ArrowLeft") { turn(i, -1); e.preventDefault(); }
+    });
+    var pm = document.createElement("div"); pm.className = "pm";
+    [-1, 1].forEach(function (d) {
+      var b = document.createElement("button"); b.type = "button"; b.textContent = d < 0 ? "−" : "+";
+      b.id = (i < 0 ? "master" : "enc" + i) + (d < 0 ? "m" : "p");
+      b.setAttribute("aria-label", name + (d < 0 ? " zurück" : " vor"));
+      b.addEventListener("click", function () { turn(i, d); audioKick(); });
+      pm.appendChild(b);
+    });
+    var nm = document.createElement("div"); nm.className = "name"; nm.textContent = name;
+    box.appendChild(nm); box.appendChild(dial); box.appendChild(pm);
+    $(i < 3 ? "rowe" : "rowk").appendChild(box);
+    if (i < 0) masterEl = dial; else dialEl[i] = dial;
+  });
+  function turn(i, d) {
+    if (i < 0) {                        /* MASTER is a pot with end stops, not an encoder */
+      vol = Math.max(0, Math.min(100, vol + d * 4));
+      masterEl.style.transform = "rotate(" + (vol * 2.7 - 135) + "deg)";
+      return;
+    }
+    enc[i] += d; dialTurn[i] += d;
+    dialEl[i].style.transform = "rotate(" + dialTurn[i] * 18 + "deg)";
+  }
+  turn(-1, 0);
+
+  [0, 1].forEach(function (blk) {
+    var box = document.createElement("div"); box.className = "block";
+    for (var i = 0; i < 8; i++) {
+      var n = blk * 8 + i, k = document.createElement("button");
+      k.type = "button"; k.className = "key w" + (n % 4 === 0 ? " beat" : ""); k.id = "key" + WK[n];
+      k.textContent = n + 1; k.setAttribute("aria-label", "Step " + (n + 1));
+      wire(k, "k", 1 << WK[n]); box.appendChild(k); keyEl[WK[n]] = k;
+    }
+    BK.forEach(function (key, j) {
+      if (BK_AT[j][0] !== blk) return;
+      var k = document.createElement("button"), at = BK_AT[j][1];
+      k.type = "button"; k.className = "key b"; k.id = "key" + key; k.textContent = BK_NAME[j];
+      k.style.left = at === 7 ? "auto" : "calc(" + (at + 1) * 12.5 + "% - 5.3%)";
+      if (at === 7) k.style.right = "0";
+      wire(k, "k", 1 << key); box.appendChild(k); keyEl[key] = k;
+    });
+    $("keys").appendChild(box);
+  });
+  $("hold").addEventListener("change", function () {
+    if (!this.checked) { sticky = stickyB = 0; WK.forEach(function (k) { keyEl[k].classList.remove("down"); }); btnEl[7].classList.remove("down"); }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.code === "Space" && !e.repeat && e.target.tagName !== "INPUT") { latch.b |= 1 << 10; audioKick(); e.preventDefault(); }
+  });
+
+  /* ---- sound: the core's 128-frame blocks, resampled if the browser will not run at 44.1 kHz ---- */
+  function gain() { var v = vol / 100; return Math.round(v * v * 4096); }
+  function audioKick() { if (ctx && ctx.state !== "running") ctx.resume(); }
+  function audioStart() {
+    if (!w) return;
+    if (ctx) { if (ctx.state === "running") { ctx.suspend(); } else { ctx.resume(); } return; }
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) { fail("Dieser Browser hat kein Web Audio. Das Display und die Bedienung funktionieren trotzdem."); return; }
+    try { ctx = new AC({ sampleRate: 44100, latencyHint: "interactive" }); } catch (e) { ctx = new AC(); }
+    var node = ctx.createScriptProcessor(1024, 0, 2), ratio = 44100 / ctx.sampleRate;
+    var out = null, at = 128, ph = 1, pl = 0, pr = 0, cl = 0, cr = 0;
+    function next() {
+      if (at >= 128) { w.sim_audio(gain()); out = new Float32Array(w.memory.buffer, w.sim_out(), 256); at = 0; }
+      pl = cl; pr = cr; cl = out[2 * at]; cr = out[2 * at + 1]; at++;
+    }
+    node.onaudioprocess = function (e) {
+      var L = e.outputBuffer.getChannelData(0), R = e.outputBuffer.getChannelData(1), i;
+      for (i = 0; i < L.length; i++) {
+        ph += ratio;
+        while (ph >= 1) { next(); ph -= 1; }
+        L[i] = pl + (cl - pl) * ph; R[i] = pr + (cr - pr) * ph;
+      }
+    };
+    node.connect(ctx.destination);
+    ctx.onstatechange = soundLabel;
+    ctx.resume(); soundLabel();
+  }
+  function soundLabel() {
+    var on = ctx && ctx.state === "running", b = $("sound");
+    b.textContent = on ? "Ton ist an" : "Ton einschalten";
+    b.classList.toggle("live", !!on);
+  }
+  $("sound").addEventListener("click", audioStart);
+
+  /* ---- the screen and the lights, once a frame ---- */
+  var lcd = $("lcd").getContext("2d"), img = lcd.createImageData(240, 240), seenB = -1, seenK = -1, seenDB = -1, seenDK = -1;
+  function frame(t) {
+    var dirty = w.sim_frame((held.b | latch.b | stickyB) >>> 0, (held.k | latch.k | sticky) >>> 0,
+                            enc[0], enc[1], enc[2], enc[3], enc[4], enc[5], enc[6], (t >>> 0));
+    latch.b = latch.k = 0; enc = [0, 0, 0, 0, 0, 0, 0];
+    if (dirty) {
+      var fb = new Uint16Array(w.memory.buffer, w.sim_fb(), 240 * 240), d = img.data, i, p;
+      for (i = 0; i < 57600; i++) {
+        p = fb[i];
+        d[4 * i] = (p >> 11) * 255 / 31; d[4 * i + 1] = (p >> 5 & 63) * 255 / 63; d[4 * i + 2] = (p & 31) * 255 / 31; d[4 * i + 3] = 255;
+      }
+      lcd.putImageData(img, 0, 0);
+    }
+    var li = new Uint32Array(w.memory.buffer, w.sim_lights(), 4), j;
+    if (li[0] !== seenB || li[2] !== seenDB) {
+      seenB = li[0]; seenDB = li[2];
+      for (j = 0; j < 14; j++) { btnEl[j].classList.toggle("on", (seenB >>> j & 1) === 1); }
+    }
+    if (li[1] !== seenK || li[3] !== seenDK) {
+      seenK = li[1]; seenDK = li[3];
+      for (j = 0; j < 27; j++) { keyEl[j].classList.toggle("on", (seenK >>> j & 1) === 1); keyEl[j].classList.toggle("dim", (seenDK >>> j & 1) === 1); }
+    }
+    var n = w.sim_save();
+    if (n) {
+      try {
+        var b = new Uint8Array(w.memory.buffer, w.sim_prj(), n), s = "";
+        for (j = 0; j < n; j++) s += String.fromCharCode(b[j]);
+        localStorage.setItem("suom1saundi-project", btoa(s));
+      } catch (e) {}
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ---- start ---- */
+  var bin;
+  try {
+    var raw = atob(WASM); bin = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) bin[i] = raw.charCodeAt(i);
+  } catch (e) { fail("Die Testseite ist unvollständig gebaut (kein WebAssembly eingebettet). sim/build.sh erzeugt sie."); return; }
+  WebAssembly.instantiate(bin, {}).then(function (r) {
+    w = r.instance.exports;
+    w.sim_init((Date.now() & 0x7fffffff) | 1);
+    try {
+      var s = localStorage.getItem("suom1saundi-project");
+      if (s) {
+        var raw2 = atob(s), b = new Uint8Array(w.memory.buffer, w.sim_prj(), raw2.length);
+        for (var j = 0; j < raw2.length; j++) b[j] = raw2.charCodeAt(j);
+        w.sim_load(raw2.length);
+      }
+    } catch (e) {}
+    requestAnimationFrame(frame);
+  }).catch(function (e) {
+    fail("WebAssembly ließ sich hier nicht starten (" + e.message + "). Öffne docs/emulator.html aus dem Repository direkt im Browser.");
+  });
+})();
+</script>
+</body>
+</html>

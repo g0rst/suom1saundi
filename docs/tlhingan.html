@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="tlh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>suom1saundi – lo&#x27;meH paq</title>
+<!-- written by tools/manual.py from docs/TLHINGAN.md: do not edit by hand -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&display=swap">
+<style>
+:root{--hot:#ff1fd1;--lime:#b6ff00;--cyan:#00f0ff;--yel:#fff200;--ink:#12001a;--paper:#fffdf2}
+*{box-sizing:border-box}
+html{background:var(--ink)}
+body{margin:0;color:var(--ink);font:17px/1.55 "Comic Sans MS","Comic Neue","Chalkboard SE","Marker Felt",cursive;
+ background:
+  repeating-conic-gradient(from 45deg,#2b0040 0 25%,#12001a 0 50%) 0 0/48px 48px fixed}
+a{color:#c800ff;font-weight:700}
+a:hover{background:var(--yel);color:#000}
+.ticker{position:sticky;top:0;z-index:9;overflow:hidden;white-space:nowrap;background:var(--yel);color:#000;
+ border-bottom:4px dashed #000;font:700 15px/2 Bangers,Impact,"Arial Black",sans-serif;letter-spacing:.08em}
+.ticker span{display:inline-block;padding-left:100%;animation:tick 26s linear infinite}
+@keyframes tick{to{transform:translateX(-100%)}}
+header.top{text-align:center;padding:38px 14px 18px;color:#fff}
+.logo{font:900 clamp(44px,11vw,120px)/.9 Bangers,Impact,"Arial Black",sans-serif;margin:0;letter-spacing:-.02em;
+ background:linear-gradient(90deg,var(--hot),var(--yel),var(--lime),var(--cyan),var(--hot));background-size:300% 100%;
+ -webkit-background-clip:text;background-clip:text;color:transparent;animation:rb 6s linear infinite;
+ filter:drop-shadow(5px 5px 0 #000) drop-shadow(-3px -3px 0 #ff00aa);transform:rotate(-3deg)}
+@keyframes rb{to{background-position:300% 0}}
+.tag{display:inline-block;margin-top:14px;background:var(--hot);color:#fff;padding:6px 14px;transform:rotate(2deg);
+ border:3px solid #fff;box-shadow:6px 6px 0 var(--lime);font-weight:700}
+.langs{margin:18px 0 0;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.langs a{background:#000;color:var(--lime);border:3px solid var(--lime);padding:6px 12px;text-decoration:none;
+ box-shadow:4px 4px 0 var(--hot)}
+.langs a.cur{background:var(--lime);color:#000}
+main{max-width:980px;margin:0 auto 60px;padding:0 12px}
+.paper{background:var(--paper);border:5px solid #000;box-shadow:12px 12px 0 var(--hot),-8px -8px 0 var(--cyan);
+ padding:20px clamp(14px,4vw,42px) 40px;position:relative}
+.paper:before{content:"";position:absolute;inset:-5px -5px auto -5px;height:16px;
+ background:repeating-linear-gradient(45deg,#000 0 14px,var(--yel) 14px 28px)}
+.toc{background:#000;color:#fff;padding:12px 16px;border:3px dotted var(--cyan);transform:rotate(-.6deg);margin:26px 0}
+.toc b{color:var(--yel);font-family:Bangers,Impact,sans-serif;letter-spacing:.1em}
+.toc ol{margin:6px 0 0;columns:2 230px}
+.toc a{color:var(--cyan)}
+h1{font:900 42px/1.1 Bangers,Impact,"Arial Black",sans-serif;margin:22px 0 10px}
+h2{font:900 30px/1.15 Bangers,Impact,"Arial Black",sans-serif;margin:46px 0 14px;color:#fff;background:#000;
+ display:inline-block;padding:4px 14px;transform:rotate(-1.2deg);box-shadow:6px 6px 0 var(--hot)}
+h2:nth-of-type(3n+2){box-shadow:6px 6px 0 var(--lime);transform:rotate(1deg)}
+h2:nth-of-type(3n){box-shadow:6px 6px 0 var(--cyan)}
+h2:before{content:"★ ";color:var(--yel)}
+h3{font:900 22px/1.2 Bangers,Impact,"Arial Black",sans-serif;margin:28px 0 6px;color:#c800ff;text-shadow:2px 2px 0 var(--lime)}
+p,li{max-width:72ch}
+code{background:#000;color:var(--lime);padding:1px 6px;font:15px ui-monospace,Menlo,Consolas,monospace}
+pre{background:#000;color:var(--lime);padding:14px;overflow:auto;border-left:8px solid var(--hot);font:14px/1.45 ui-monospace,Menlo,monospace}
+.tw{overflow-x:auto;margin:10px 0 18px}
+table{border-collapse:collapse;min-width:100%;font-size:15.5px;background:#fff}
+th{background:#000;color:var(--yel);font:700 15px Bangers,Impact,"Arial Black",sans-serif;letter-spacing:.05em;text-align:left;padding:7px 10px}
+td{border:2px solid #000;padding:6px 10px;vertical-align:top}
+tbody tr:nth-child(odd){background:#fff3fd}
+tbody tr:hover{background:var(--yel)}
+.sticker{display:block;background:var(--lime);border:3px solid #000;padding:12px 16px;margin:18px 0;max-width:62ch;
+ transform:rotate(-1.4deg);box-shadow:7px 7px 0 #000;font-weight:700}
+.sticker:nth-of-type(even){background:var(--cyan);transform:rotate(1.2deg)}
+.blink{animation:bl 1s steps(1) infinite;color:var(--hot)}
+@keyframes bl{50%{opacity:0}}
+.construct{margin:30px auto 0;text-align:center;font:700 14px Bangers,Impact,sans-serif;color:#000;letter-spacing:.12em;
+ background:repeating-linear-gradient(-45deg,var(--yel) 0 18px,#000 18px 36px);padding:12px}
+.construct span{background:var(--yel);padding:4px 10px}
+footer{color:#fff;text-align:center;font-size:14px;padding:0 12px 40px}
+footer .counter{display:inline-block;background:#000;color:var(--lime);font:700 18px ui-monospace,monospace;
+ border:2px inset #777;padding:2px 8px;letter-spacing:.2em}
+.emu{display:inline-block;margin:22px 0 4px;background:var(--hot);color:#fff;font:900 24px Bangers,Impact,sans-serif;padding:12px 22px;
+ border:4px solid #000;box-shadow:8px 8px 0 #000;text-decoration:none;transform:rotate(-2deg)}
+.emu:hover{background:var(--lime);color:#000;transform:rotate(2deg) scale(1.05)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="ticker" aria-hidden="true"><span>★ nuqneH! ★ suom1saundi QoQ jan ★ POTKU ★ HAPPO ★ PIIP ★ SEKO: Hoch pIm ★ reH paq'vam choHlu' ★ DaH yIQoy! ★ Qapla'! ★</span></div>
+<header class="top">
+  <p class="logo">suom1saundi</p>
+  <div class="tag">M-VAVE FM-1 QoQ jan lo'meH paq · v0.1 <span class="blink">NEW!</span></div>
+  <nav class="langs"><a href="handbuch.html">Deutsch</a><a href="manual.html">English</a><a href="tlhingan.html" class=cur>tlhIngan Hol</a><a href="index.html">⌂</a></nav>
+  <a class="emu" href="emulator.html">▶ DaH yIQoy</a>
+</header>
+<main>
+<div class="paper">
+<nav class="toc"><b>'ay'mey</b><ol><li><a href="#ghuhmoh">ghuHmoH</a></li><li><a href="#emulator">EMULATOR</a></li><li><a href="#yitagh">yItagh!</a></li><li><a href="#jav-tlhegh">jav tlhegh</a></li><li><a href="#sehmey">SeHmey</a></li><li><a href="#navmey">navmey</a></li><li><a href="#wab">wab</a></li><li><a href="#seko">SEKO</a></li><li><a href="#8-bit">8-BIT</a></li><li><a href="#hoch-mi">Hoch mI'</a></li><li><a href="#wab-ghommey">wab ghommey</a></li><li><a href="#midi">MIDI</a></li><li><a href="#ngoq-yichenmoh">ngoq yIchenmoH</a></li><li><a href="#mi-mey">mI'mey</a></li></ol></nav>
+<h1 id="suom1saundi-lo-meh-paq">suom1saundi – lo'meH paq</h1>
+<p>nuqneH! M-VAVE FM-1 QoQ jan ngoq 'oH suom1saundi'e'. suomisaundi QoQ DaQoymeH wIghunta'. Suomi QoQ 'oH suomisaundi'e': Quch 'ej Huj. jav ghogh ghaj suom1saundi. <b>SEKO</b> SeH DajIrmoHchugh, QoQ choH reH.</p>
+<aside class="sticker">tlhIngan Hol mughlu'pu'; DIvI' Hol pong'e' jIH 'ang, pong rap lo'lu'. <i>(Fan-Übersetzung: Namen der Regler bleiben, wie das Display sie zeigt.)</i> reH choHlu' paq'vam: <code>tools/manual.py</code> ngoq vo' SeHmey mI'mey je ghItlh.</aside>
+<h2 id="ghuhmoh">ghuHmoH</h2>
+<ul><li><code>app/core/suomi.c</code> Qap: tests, fm1-base, EMULATOR je.</li><li><code>.fwsc</code> wIchenmoHbe'. JieLi jan 'ej AC79 SDK DapoQ.</li><li>QoQ jan naQ wIwaHbe'! QoQ jan DaQaw'laH. V15 yIlo' wa'DIch, De'lIj yIpol.</li></ul>
+<h2 id="emulator">EMULATOR</h2>
+<p><a href="emulator.html">EMULATOR</a> yIlo': ngoq rap Qap. <b>Ton einschalten</b> yIyuv, <b>PLAY</b> yIyuv. QoQ yIQoy!</p>
+<h2 id="yitagh">yItagh!</h2>
+<ol><li><b>PLAY</b> yIyuv: QoQ tagh. 145 BPM, F♯ PHRDOM.</li><li>jav leQmey qIj: tlhegh yIwIv. wa'maH jav leQmey chIS: tlhegh Steps.</li><li><b>SEL</b> yIyuv: tlhegh chu'. <b>ARP</b>: tlhegh choH. <b>NEW</b>: Hoch chu'. <b>UNDO</b>: ret.</li><li><b>HOME</b> yIyuv, <b>KNOB3</b> (SEKO) yIjIrmoH: QoQ Huj.</li><li><b>EDIT</b> yIyuv, SeHmey yIjIrmoH: wab choH.</li><li><b>SAVE</b> yIyuv: Hoch yIpol.</li></ol>
+<h2 id="jav-tlhegh">jav tlhegh</h2>
+<div class="tw"><table><thead><tr><th>leQ</th><th>tlhegh</th><th>Suomi Hol</th><th>Qu'</th></tr></thead><tbody><tr><td>qIj 1</td><td><b>POTKU</b></td><td>pup</td><td>wab 'ugh, loS</td></tr><tr><td>qIj 2</td><td><b>BASSO</b></td><td>wab bIng</td><td>POTKU retlh</td></tr><tr><td>qIj 3</td><td><b>HATTU</b></td><td>mIv</td><td>baS wab, 8-BIT</td></tr><tr><td>qIj 4</td><td><b>HAPPO</b></td><td>acid</td><td>acid tlhegh</td></tr><tr><td>qIj 5</td><td><b>PIIP</b></td><td>piip</td><td>8-BIT QoQ</td></tr><tr><td>qIj 6</td><td><b>OUTO</b></td><td>Huj</td><td>FM pu' wab</td></tr></tbody></table></div>
+<h2 id="sehmey">SeHmey</h2>
+<div class="tw"><table><thead><tr><th>SeH</th><th>Qu'</th></tr></thead><tbody><tr><td><b>PLAY</b></td><td>tagh, mev</td></tr><tr><td><b>chIS 16</b></td><td>Steps; yIyuv: chu' pagh</td></tr><tr><td><b>chIS yI'uch + K1</b></td><td>wab Dung bIng</td></tr><tr><td><b>chIS yI'uch + K2</b></td><td>CHANCE: 100, 75, 50, 25 %</td></tr><tr><td><b>chIS yI'uch + K3</b></td><td>OFF, ACC, SLD, A+S</td></tr><tr><td><b>chIS yI'uch + K4</b></td><td>RATCHET 1 .. 4</td></tr><tr><td><b>qIj 1–6</b></td><td>tlhegh yIwIv</td></tr><tr><td><b>qIj 7–11</b></td><td>CLR, ◀ ▶, NEW, UNDO</td></tr><tr><td><b>ALGORITHM</b></td><td>tlhegh tIq: 1 .. 16</td></tr><tr><td><b>PRESETS</b></td><td>A, B, C, D</td></tr><tr><td><b>LFO</b></td><td>yIyuv: tam; yI'uch: nIteb</td></tr><tr><td><b>REC</b></td><td>leQmey QoQ</td></tr><tr><td><b>SAVE</b></td><td>yIpol</td></tr><tr><td><b>MASTER</b></td><td>HoS</td></tr></tbody></table></div>
+<h2 id="navmey">navmey</h2>
+<p>SeHmey Dung leQmey: K1 .. K4 Qu' yIwIv. leQ rap cha'logh yIyuv: cha'DIch nav.</p>
+<div class="tw"><table><thead><tr><th>leQ</th><th>nav</th><th>K1</th><th>K2</th><th>K3</th><th>K4</th></tr></thead><tbody><tr><td><b>HOME</b></td><td>GROOVE</td><td>TEMPO</td><td>SWING</td><td>SEKO</td><td>DUCK</td></tr><tr><td><b>EDIT</b></td><td>SOUND</td><td>p1</td><td>p2</td><td>p3</td><td>p4</td></tr><tr><td><b>EDIT ×2</b></td><td>SOUND 2</td><td>p5</td><td>p6</td><td>p7</td><td>p8</td></tr><tr><td><b>ENV</b></td><td>MIX</td><td>LEVEL</td><td>PAN</td><td>DELAY</td><td>REVERB</td></tr><tr><td><b>ENV ×2</b></td><td>8-BIT</td><td>BITS</td><td>RATE</td><td></td><td></td></tr><tr><td><b>FX</b></td><td>FX</td><td>D.TIME</td><td>D.FDBK</td><td>R.SIZE</td><td>R.DAMP</td></tr><tr><td><b>FX ×2</b></td><td>SIDECHAIN</td><td>SOURCE</td><td>DEPTH</td><td>RELEASE</td><td>AMOUNT</td></tr><tr><td><b>GLO</b></td><td>GLOBAL</td><td>ROOT</td><td>SCALE</td><td>CLOCK</td><td>CHAIN</td></tr><tr><td><b>GLO ×2</b></td><td>GLOBAL 2</td><td>XPOSE</td><td>DRIVE</td><td></td><td></td></tr><tr><td><b>SEQ</b></td><td>EUCLID</td><td>HITS</td><td>ROTATE</td><td>CHANCE</td><td>ACCENT</td></tr><tr><td><b>SEQ ×2</b></td><td>LINK</td><td>SOURCE</td><td>MODE</td><td></td><td></td></tr><tr><td><b>SEQ ×3</b></td><td>TIMING</td><td>STEP n</td><td>TRACK</td><td></td><td></td></tr></tbody></table></div>
+<h2 id="wab">wab</h2>
+<p>Hoch tlhegh: chorgh SeH. loS <b>EDIT</b>, loS <b>EDIT²</b>. 0 .. 127.</p>
+<h3 id="potku">POTKU</h3>
+<p>POTKU: psy wab 'ugh</p>
+<div class="tw"><table><thead><tr><th>nav</th><th>SeH</th><th>pong</th><th>wa'DIch</th><th>Qu'</th></tr></thead><tbody><tr><td>EDIT</td><td>K1</td><td><b>TUNE</b></td><td>48</td><td>POTKU wab Dung bIng</td></tr><tr><td>EDIT</td><td>K2</td><td><b>DECAY</b></td><td>58</td><td>wab tIq</td></tr><tr><td>EDIT</td><td>K3</td><td><b>SWEEP</b></td><td>62</td><td>wab pum: psy 'tok'</td></tr><tr><td>EDIT</td><td>K4</td><td><b>DRIVE</b></td><td>40</td><td>HoS 'ej jach</td></tr><tr><td>EDIT²</td><td>K1</td><td><b>SNAP</b></td><td>40</td><td>pum nom</td></tr><tr><td>EDIT²</td><td>K2</td><td><b>CLICK</b></td><td>50</td><td>wab tagh 'och</td></tr><tr><td>EDIT²</td><td>K3</td><td><b>HOLD</b></td><td>20</td><td>HoS naQ yI'uch (86 ms)</td></tr><tr><td>EDIT²</td><td>K4</td><td>(pagh)</td><td></td><td></td></tr></tbody></table></div>
+<h3 id="basso">BASSO</h3>
+<p>BASSO: wab bIng</p>
+<div class="tw"><table><thead><tr><th>nav</th><th>SeH</th><th>pong</th><th>wa'DIch</th><th>Qu'</th></tr></thead><tbody><tr><td>EDIT</td><td>K1</td><td><b>CUTOFF</b></td><td>52</td><td>tlhegh Hab: Dung bIng</td></tr><tr><td>EDIT</td><td>K2</td><td><b>RESO</b></td><td>40</td><td>jach</td></tr><tr><td>EDIT</td><td>K3</td><td><b>ENVMOD</b></td><td>60</td><td>tlhegh poSmoH</td></tr><tr><td>EDIT</td><td>K4</td><td><b>DECAY</b></td><td>34</td><td>wab tIq</td></tr><tr><td>EDIT²</td><td>K1</td><td><b>WAVE</b></td><td>0</td><td>wab jIr: 0 .. 127</td></tr><tr><td>EDIT²</td><td>K2</td><td><b>SUB</b></td><td>40</td><td>wab bIng</td></tr><tr><td>EDIT²</td><td>K3</td><td><b>GLIDE</b></td><td>50</td><td>SLIDE nom</td></tr><tr><td>EDIT²</td><td>K4</td><td><b>DRIVE</b></td><td>40</td><td>HoS 'ej jach</td></tr></tbody></table></div>
+<h3 id="hattu">HATTU</h3>
+<p>HATTU: baS wab</p>
+<div class="tw"><table><thead><tr><th>nav</th><th>SeH</th><th>pong</th><th>wa'DIch</th><th>Qu'</th></tr></thead><tbody><tr><td>EDIT</td><td>K1</td><td><b>DECAY</b></td><td>40</td><td>wab tIq</td></tr><tr><td>EDIT</td><td>K2</td><td><b>TONE</b></td><td>72</td><td>baS wab Dung bIng</td></tr><tr><td>EDIT</td><td>K3</td><td><b>METAL</b></td><td>70</td><td>wab veQ .. baS</td></tr><tr><td>EDIT</td><td>K4</td><td><b>OPEN</b></td><td>64</td><td>ACC poSmoH</td></tr><tr><td>EDIT²</td><td>K1</td><td><b>CHIP</b></td><td>0</td><td>8-BIT veQ wab</td></tr><tr><td>EDIT²</td><td>K2</td><td><b>SHAKE</b></td><td>0</td><td>QIt tagh</td></tr><tr><td>EDIT²</td><td>K3</td><td>(pagh)</td><td></td><td></td></tr><tr><td>EDIT²</td><td>K4</td><td>(pagh)</td><td></td><td></td></tr></tbody></table></div>
+<h3 id="happo">HAPPO</h3>
+<p>HAPPO: acid wab</p>
+<div class="tw"><table><thead><tr><th>nav</th><th>SeH</th><th>pong</th><th>wa'DIch</th><th>Qu'</th></tr></thead><tbody><tr><td>EDIT</td><td>K1</td><td><b>CUTOFF</b></td><td>58</td><td>tlhegh Hab: Dung bIng</td></tr><tr><td>EDIT</td><td>K2</td><td><b>RESO</b></td><td>96</td><td>jach</td></tr><tr><td>EDIT</td><td>K3</td><td><b>ENVMOD</b></td><td>74</td><td>tlhegh poSmoH</td></tr><tr><td>EDIT</td><td>K4</td><td><b>DECAY</b></td><td>44</td><td>wab tIq</td></tr><tr><td>EDIT²</td><td>K1</td><td><b>WAVE</b></td><td>0</td><td>wab jIr</td></tr><tr><td>EDIT²</td><td>K2</td><td><b>ACCENT</b></td><td>90</td><td>ACC HoS</td></tr><tr><td>EDIT²</td><td>K3</td><td><b>GLIDE</b></td><td>60</td><td>SLIDE nom</td></tr><tr><td>EDIT²</td><td>K4</td><td><b>DRIVE</b></td><td>60</td><td>HoS 'ej jach</td></tr></tbody></table></div>
+<h3 id="piip">PIIP</h3>
+<p>PIIP: 8-BIT QoQ</p>
+<div class="tw"><table><thead><tr><th>nav</th><th>SeH</th><th>pong</th><th>wa'DIch</th><th>Qu'</th></tr></thead><tbody><tr><td>EDIT</td><td>K1</td><td><b>WAVE</b></td><td>30</td><td>8-BIT wab jIr</td></tr><tr><td>EDIT</td><td>K2</td><td><b>DECAY</b></td><td>46</td><td>wab tIq</td></tr><tr><td>EDIT</td><td>K3</td><td><b>ARP</b></td><td>40</td><td>wab law' nom</td></tr><tr><td>EDIT</td><td>K4</td><td><b>VIBRATO</b></td><td>30</td><td>wab ghIr</td></tr><tr><td>EDIT²</td><td>K1</td><td><b>SPEED</b></td><td>64</td><td>nom</td></tr><tr><td>EDIT²</td><td>K2</td><td><b>PWM</b></td><td>30</td><td>PWM</td></tr><tr><td>EDIT²</td><td>K3</td><td><b>BEND</b></td><td>64</td><td>tagh: bIng (−) Dung (+)</td></tr><tr><td>EDIT²</td><td>K4</td><td><b>DETUNE</b></td><td>0</td><td>cha' wab</td></tr></tbody></table></div>
+<h3 id="outo">OUTO</h3>
+<p>OUTO: wab Huj</p>
+<div class="tw"><table><thead><tr><th>nav</th><th>SeH</th><th>pong</th><th>wa'DIch</th><th>Qu'</th></tr></thead><tbody><tr><td>EDIT</td><td>K1</td><td><b>DECAY</b></td><td>60</td><td>wab tIq</td></tr><tr><td>EDIT</td><td>K2</td><td><b>FM</b></td><td>80</td><td>FM HoS</td></tr><tr><td>EDIT</td><td>K3</td><td><b>RATIO</b></td><td>48</td><td>FM mI'</td></tr><tr><td>EDIT</td><td>K4</td><td><b>ZAP</b></td><td>100</td><td>pu' wab: Dung (+) bIng (−)</td></tr><tr><td>EDIT²</td><td>K1</td><td><b>ZTIME</b></td><td>50</td><td>pu' tIq</td></tr><tr><td>EDIT²</td><td>K2</td><td><b>FEEDBK</b></td><td>40</td><td>ghogh jach</td></tr><tr><td>EDIT²</td><td>K3</td><td><b>WOBBLE</b></td><td>0</td><td>wab ghIr</td></tr><tr><td>EDIT²</td><td>K4</td><td><b>RANDOM</b></td><td>50</td><td>Hoch wab pIm</td></tr></tbody></table></div>
+<h3 id="wab-ghom-wa-dich">wab ghom wa'DIch</h3>
+<div class="tw"><table><thead><tr><th>tlhegh</th><th>HoS</th><th>poS/nIH</th><th>DELAY</th><th>REVERB</th></tr></thead><tbody><tr><td><b>POTKU</b></td><td>122</td><td>C</td><td>0</td><td>0</td></tr><tr><td><b>BASSO</b></td><td>108</td><td>C</td><td>0</td><td>0</td></tr><tr><td><b>HATTU</b></td><td>84</td><td>R12</td><td>14</td><td>14</td></tr><tr><td><b>HAPPO</b></td><td>84</td><td>L12</td><td>60</td><td>20</td></tr><tr><td><b>PIIP</b></td><td>76</td><td>R16</td><td>70</td><td>40</td></tr><tr><td><b>OUTO</b></td><td>80</td><td>C</td><td>60</td><td>50</td></tr></tbody></table></div>
+<h2 id="seko">SEKO</h2>
+<p>SEKO 0: QoQ rap reH. SEKO Dun: Steps pIm, wab ghIr, SLIDE, cha' Steps. POTKU choHbe' reH.</p>
+<h2 id="8-bit">8-BIT</h2>
+<p><b>ENV</b> cha'logh yIyuv: <b>BITS</b> 'ej <b>RATE</b>. wab veQ, wab Dun!</p>
+<h2 id="hoch-mi">Hoch mI'</h2>
+<div class="tw"><table><thead><tr><th>pong</th><th>nav</th><th>wa'DIch</th><th>chuq</th><th>Qu'</th></tr></thead><tbody><tr><td><b>TEMPO</b></td><td>HOME</td><td>145</td><td>120 … 180</td><td>nom (BPM)</td></tr><tr><td><b>SWING</b></td><td>HOME</td><td>50</td><td>50 … 75</td><td>SWING</td></tr><tr><td><b>SEKO</b></td><td>HOME</td><td>40</td><td>0 … 127</td><td>Hoch pIm</td></tr><tr><td><b>DUCK</b></td><td>HOME / FX²</td><td>100</td><td>0 … 127</td><td>SIDECHAIN HoS</td></tr><tr><td><b>ROOT</b></td><td>GLO</td><td>F#1</td><td>24 … 47</td><td>wab wa'DIch</td></tr><tr><td><b>SCALE</b></td><td>GLO</td><td>PHRDOM</td><td>0 … 127</td><td>wab ghom</td></tr><tr><td><b>CLOCK</b></td><td>GLO</td><td>ON</td><td>0 … 1</td><td>MIDI CLOCK</td></tr><tr><td><b>DRIVE</b></td><td>GLO²</td><td>30</td><td>0 … 127</td><td>Hoch HoS</td></tr><tr><td><b>D.TIME</b></td><td>FX</td><td>3/16</td><td>0 … 2</td><td>DELAY poH</td></tr><tr><td><b>D.FDBK</b></td><td>FX</td><td>60</td><td>0 … 127</td><td>DELAY HoS</td></tr><tr><td><b>R.SIZE</b></td><td>FX</td><td>60</td><td>0 … 127</td><td>REVERB tIn</td></tr><tr><td><b>R.DAMP</b></td><td>FX</td><td>60</td><td>0 … 127</td><td>REVERB Hab</td></tr><tr><td><b>RELEASE</b></td><td>FX²</td><td>50</td><td>0 … 127</td><td>SIDECHAIN nom</td></tr></tbody></table></div>
+<h2 id="wab-ghommey">wab ghommey</h2>
+<div class="tw"><table><thead><tr><th>wab ghom</th><th>Qu'</th></tr></thead><tbody><tr><td><b>MINOR</b></td><td>QoQ 'IQ</td></tr><tr><td><b>PHRYG</b></td><td>QoQ Hurgh</td></tr><tr><td><b>PHRDOM</b></td><td>psy wab ghom</td></tr><tr><td><b>HARMIN</b></td><td>QoQ 'IQ</td></tr><tr><td><b>DORIAN</b></td><td>DORIAN</td></tr><tr><td><b>MAJOR</b></td><td>QoQ Quch</td></tr><tr><td><b>PENTA</b></td><td>vagh wab</td></tr><tr><td><b>WHOLE</b></td><td>wab Huj</td></tr></tbody></table></div>
+<h2 id="midi">MIDI</h2>
+<ul><li>MIDI 1 .. 6: tlhegh. MIDI 10: 36 POTKU, 37–39 OUTO, 42 44 46 HATTU.</li><li>MIDI CLOCK: GLO, CLOCK ON.</li></ul>
+<h2 id="ngoq-yichenmoh">ngoq yIchenmoH</h2>
+<pre>git clone --recursive https://github.com/g0rst/suom1saundi
+sh tests/run_tests.sh
+sh sim/build.sh
+./build.sh
+python3 tools/manual.py</pre>
+<h2 id="mi-mey">mI'mey</h2>
+<p>DaH mI': <b>0.1</b></p>
+<div class="tw"><table><thead><tr><th>mI'</th><th>jaj</th><th>choH</th></tr></thead><tbody><tr><td><b>0.1</b></td><td>2026-11-17</td><td>wa'DIch: jav ghogh, SLIDE SEKO je, 8-BIT, EMULATOR, wej Hol lo'meH paq</td></tr></tbody></table></div>
+<p>Qapla'!</p>
+<div class="construct"><span>🚧 reH choHlu' · ngoq vo' paq'vam chenmoHlu' 🚧</span></div>
+</div>
+</main>
+<footer><p>SuchwI'pu' (1997 DIS): <span class="counter">0004711</span></p>
+<p>MIT · <a href="https://github.com/g0rst/suom1saundi" style="color:#b6ff00">github.com/g0rst/suom1saundi</a></p></footer>
+</body>
+</html>

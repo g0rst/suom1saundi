@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: MIT
+# On every push: the core's tests, the browser emulator (docs/emulator.html) and the three manuals rebuilt from the
+# code (tools/manual.py). What changed is committed back to main, and docs/ goes to GitHub Pages:
+# https://g0rst.github.io/suom1saundi/ (once: Settings -> Pages -> Source "GitHub Actions").
+name: Tests, Emulator und Handbuch
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: clang and wasm-ld
+        run: sudo apt-get install -y -qq clang lld
+      - name: Core tests
+        run: sh tests/run_tests.sh
+      - name: Browser emulator
+        run: sh sim/build.sh
+      - name: Manuals from the code
+        run: python3 tools/manual.py
+      - name: Commit what the build rewrote
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "suom1saundi-bot"
+          git config user.email "suom1saundi-bot@users.noreply.github.com"
+          git add docs
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: Handbuch und Emulator aus dem Code aktualisiert [skip ci]"
+            git push
+          fi
+      - name: Check that everything is up to date (pull requests)
+        if: github.event_name == 'pull_request'
+        run: python3 tools/manual.py --check
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

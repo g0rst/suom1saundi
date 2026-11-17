@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>suom1saundi – Manual</title>
+<!-- written by tools/manual.py from docs/MANUAL.md: do not edit by hand -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&display=swap">
+<style>
+:root{--hot:#ff1fd1;--lime:#b6ff00;--cyan:#00f0ff;--yel:#fff200;--ink:#12001a;--paper:#fffdf2}
+*{box-sizing:border-box}
+html{background:var(--ink)}
+body{margin:0;color:var(--ink);font:17px/1.55 "Comic Sans MS","Comic Neue","Chalkboard SE","Marker Felt",cursive;
+ background:
+  repeating-conic-gradient(from 45deg,#2b0040 0 25%,#12001a 0 50%) 0 0/48px 48px fixed}
+a{color:#c800ff;font-weight:700}
+a:hover{background:var(--yel);color:#000}
+.ticker{position:sticky;top:0;z-index:9;overflow:hidden;white-space:nowrap;background:var(--yel);color:#000;
+ border-bottom:4px dashed #000;font:700 15px/2 Bangers,Impact,"Arial Black",sans-serif;letter-spacing:.08em}
+.ticker span{display:inline-block;padding-left:100%;animation:tick 26s linear infinite}
+@keyframes tick{to{transform:translateX(-100%)}}
+header.top{text-align:center;padding:38px 14px 18px;color:#fff}
+.logo{font:900 clamp(44px,11vw,120px)/.9 Bangers,Impact,"Arial Black",sans-serif;margin:0;letter-spacing:-.02em;
+ background:linear-gradient(90deg,var(--hot),var(--yel),var(--lime),var(--cyan),var(--hot));background-size:300% 100%;
+ -webkit-background-clip:text;background-clip:text;color:transparent;animation:rb 6s linear infinite;
+ filter:drop-shadow(5px 5px 0 #000) drop-shadow(-3px -3px 0 #ff00aa);transform:rotate(-3deg)}
+@keyframes rb{to{background-position:300% 0}}
+.tag{display:inline-block;margin-top:14px;background:var(--hot);color:#fff;padding:6px 14px;transform:rotate(2deg);
+ border:3px solid #fff;box-shadow:6px 6px 0 var(--lime);font-weight:700}
+.langs{margin:18px 0 0;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.langs a{background:#000;color:var(--lime);border:3px solid var(--lime);padding:6px 12px;text-decoration:none;
+ box-shadow:4px 4px 0 var(--hot)}
+.langs a.cur{background:var(--lime);color:#000}
+main{max-width:980px;margin:0 auto 60px;padding:0 12px}
+.paper{background:var(--paper);border:5px solid #000;box-shadow:12px 12px 0 var(--hot),-8px -8px 0 var(--cyan);
+ padding:20px clamp(14px,4vw,42px) 40px;position:relative}
+.paper:before{content:"";position:absolute;inset:-5px -5px auto -5px;height:16px;
+ background:repeating-linear-gradient(45deg,#000 0 14px,var(--yel) 14px 28px)}
+.toc{background:#000;color:#fff;padding:12px 16px;border:3px dotted var(--cyan);transform:rotate(-.6deg);margin:26px 0}
+.toc b{color:var(--yel);font-family:Bangers,Impact,sans-serif;letter-spacing:.1em}
+.toc ol{margin:6px 0 0;columns:2 230px}
+.toc a{color:var(--cyan)}
+h1{font:900 42px/1.1 Bangers,Impact,"Arial Black",sans-serif;margin:22px 0 10px}
+h2{font:900 30px/1.15 Bangers,Impact,"Arial Black",sans-serif;margin:46px 0 14px;color:#fff;background:#000;
+ display:inline-block;padding:4px 14px;transform:rotate(-1.2deg);box-shadow:6px 6px 0 var(--hot)}
+h2:nth-of-type(3n+2){box-shadow:6px 6px 0 var(--lime);transform:rotate(1deg)}
+h2:nth-of-type(3n){box-shadow:6px 6px 0 var(--cyan)}
+h2:before{content:"★ ";color:var(--yel)}
+h3{font:900 22px/1.2 Bangers,Impact,"Arial Black",sans-serif;margin:28px 0 6px;color:#c800ff;text-shadow:2px 2px 0 var(--lime)}
+p,li{max-width:72ch}
+code{background:#000;color:var(--lime);padding:1px 6px;font:15px ui-monospace,Menlo,Consolas,monospace}
+pre{background:#000;color:var(--lime);padding:14px;overflow:auto;border-left:8px solid var(--hot);font:14px/1.45 ui-monospace,Menlo,monospace}
+.tw{overflow-x:auto;margin:10px 0 18px}
+table{border-collapse:collapse;min-width:100%;font-size:15.5px;background:#fff}
+th{background:#000;color:var(--yel);font:700 15px Bangers,Impact,"Arial Black",sans-serif;letter-spacing:.05em;text-align:left;padding:7px 10px}
+td{border:2px solid #000;padding:6px 10px;vertical-align:top}
+tbody tr:nth-child(odd){background:#fff3fd}
+tbody tr:hover{background:var(--yel)}
+.sticker{display:block;background:var(--lime);border:3px solid #000;padding:12px 16px;margin:18px 0;max-width:62ch;
+ transform:rotate(-1.4deg);box-shadow:7px 7px 0 #000;font-weight:700}
+.sticker:nth-of-type(even){background:var(--cyan);transform:rotate(1.2deg)}
+.blink{animation:bl 1s steps(1) infinite;color:var(--hot)}
+@keyframes bl{50%{opacity:0}}
+.construct{margin:30px auto 0;text-align:center;font:700 14px Bangers,Impact,sans-serif;color:#000;letter-spacing:.12em;
+ background:repeating-linear-gradient(-45deg,var(--yel) 0 18px,#000 18px 36px);padding:12px}
+.construct span{background:var(--yel);padding:4px 10px}
+footer{color:#fff;text-align:center;font-size:14px;padding:0 12px 40px}
+footer .counter{display:inline-block;background:#000;color:var(--lime);font:700 18px ui-monospace,monospace;
+ border:2px inset #777;padding:2px 8px;letter-spacing:.2em}
+.emu{display:inline-block;margin:22px 0 4px;background:var(--hot);color:#fff;font:900 24px Bangers,Impact,sans-serif;padding:12px 22px;
+ border:4px solid #000;box-shadow:8px 8px 0 #000;text-decoration:none;transform:rotate(-2deg)}
+.emu:hover{background:var(--lime);color:#000;transform:rotate(2deg) scale(1.05)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="ticker" aria-hidden="true"><span>★ SUOMISAUNDI ON YOUR FM-1 ★ PSY KICK ★ ACID ★ 8-BIT ★ SEKO = CRAZY ★ THIS MANUAL REWRITES ITSELF ★ PLAY IT NOW IN THE EMULATOR ★</span></div>
+<header class="top">
+  <p class="logo">suom1saundi</p>
+  <div class="tag">The manual of the suomisaundi firmware for the M-VAVE FM-1 · v0.1 <span class="blink">NEW!</span></div>
+  <nav class="langs"><a href="handbuch.html">Deutsch</a><a href="manual.html" class=cur>English</a><a href="tlhingan.html">tlhIngan Hol</a><a href="index.html">⌂</a></nav>
+  <a class="emu" href="emulator.html">▶ PLAY IN THE EMULATOR</a>
+</header>
+<main>
+<div class="paper">
+<nav class="toc"><b>CONTENTS</b><ol><li><a href="#status-and-warning">Status and warning</a></li><li><a href="#try-it-without-the-device">Try it without the device</a></li><li><a href="#quick-start">Quick start</a></li><li><a href="#the-six-tracks">The six tracks</a></li><li><a href="#controls">Controls</a></li><li><a href="#pages">Pages</a></li><li><a href="#sounds">Sounds</a></li><li><a href="#the-sequencer">The sequencer</a></li><li><a href="#seko">SEKO</a></li><li><a href="#8-bit">8-bit</a></li><li><a href="#effects-and-sidechain">Effects and sidechain</a></li><li><a href="#patterns-chain-and-key">Patterns, chain and key</a></li><li><a href="#global-values">Global values</a></li><li><a href="#scales">Scales</a></li><li><a href="#midi">MIDI</a></li><li><a href="#building-the-firmware">Building the firmware</a></li><li><a href="#where-it-comes-from">Where it comes from</a></li><li><a href="#versions">Versions</a></li></ol></nav>
+<h1 id="suom1saundi-manual">suom1saundi – Manual</h1>
+<p>suom1saundi is firmware for the <b>M-VAVE FM-1</b> that turns the little FM synth into a groovebox for <b>suomisaundi</b>: Finnish freestyle psytrance. The genre is bouncy, playful and silly, with rolling basses, chirping acid lines, chiptune melodies and noises nobody expects. The six voices are built for exactly that, and a knob called <b>SEKO</b> (Finnish for "crazy") makes sure no bar sounds quite like the last.</p>
+<aside class="sticker">This manual updates itself: the tables of knobs, factory values, pages, scales and versions are written by <code>tools/manual.py</code> straight from the firmware's code on every push.</aside>
+<h2 id="status-and-warning">Status and warning</h2>
+<ul><li>The core (<code>app/core/suomi.c</code>) runs in the host tests, in fm1-base's simulator and in the browser emulator.</li><li>A <code>.fwsc</code> package for the device needs JieLi's toolchain and the AC79 SDK and has <b>not been built yet</b>.</li><li>The firmware has <b>not been tested on a real FM-1</b>. Custom firmware can brick a device. Go to the official V15 first, back up your data and know how to get back (fm1-base's installer).</li></ul>
+<h2 id="try-it-without-the-device">Try it without the device</h2>
+<p>The <a href="emulator.html">emulator</a> runs in the browser with exactly the same C core as the firmware, as WebAssembly. The controls sit as on the FM-1. Press <b>Ton einschalten</b> (sound on) first, then <b>PLAY</b>. The space bar is PLAY. Saving goes to the browser.</p>
+<h2 id="quick-start">Quick start</h2>
+<ol><li>Press <b>PLAY</b>: a generated groove in F♯ phrygian dominant at 145 BPM plays out of the box.</li><li>One of the first six <b>black keys</b> picks a track. The 16 <b>white keys</b> are its steps.</li><li><b>SEL</b> rolls the track anew, <b>ARP</b> changes it just a little, the black key <b>NEW</b> rolls the whole groove, <b>UNDO</b> brings the previous one back.</li><li><b>HOME</b> and turn up <b>KNOB3</b> (SEKO): the groove starts to improvise.</li><li><b>EDIT</b> and turn the four knobs: the track's sound. <b>EDIT</b> again: the other four sound knobs.</li><li>A short press on <b>SAVE</b> stores everything.</li></ol>
+<h2 id="the-six-tracks">The six tracks</h2>
+<div class="tw"><table><thead><tr><th>Key</th><th>Track</th><th>Finnish for</th><th>Role</th></tr></thead><tbody><tr><td>black 1</td><td><b>POTKU</b></td><td>kick</td><td>the kick, four on the floor</td></tr><tr><td>black 2</td><td><b>BASSO</b></td><td>bass</td><td>filter bass between the kicks, with octave jumps</td></tr><tr><td>black 3</td><td><b>HATTU</b></td><td>hat</td><td>hats and shakers, with 8-bit noise if you like</td></tr><tr><td>black 4</td><td><b>HAPPO</b></td><td>acid</td><td>the acid line</td></tr><tr><td>black 5</td><td><b>PIIP</b></td><td>beep</td><td>an 8-bit melody like an old sound chip</td></tr><tr><td>black 6</td><td><b>OUTO</b></td><td>weird</td><td>FM zaps, lasers, bubbles</td></tr></tbody></table></div>
+<h2 id="controls">Controls</h2>
+<div class="tw"><table><thead><tr><th>Control</th><th>Function</th></tr></thead><tbody><tr><td><b>PLAY</b></td><td>start and stop</td></tr><tr><td><b>16 white keys</b></td><td>the steps of the chosen track; a tap toggles</td></tr><tr><td><b>hold a white key + K1</b></td><td>the step's note (−24 … +24)</td></tr><tr><td><b>hold a white key + K2</b></td><td>chance: 100, 75, 50, 25 %</td></tr><tr><td><b>hold a white key + K3</b></td><td>off, accent (ACC), slide (SLD), both (A+S)</td></tr><tr><td><b>hold a white key + K4</b></td><td>ratchet: 1 to 4 hits within the step</td></tr><tr><td><b>hold a white key + SELECT</b></td><td>microtiming: earlier or later</td></tr><tr><td><b>hold a white key + SEL</b></td><td>clear the step's locks and shift</td></tr><tr><td><b>black keys 1–6</b></td><td>pick a track (heard when the groove is stopped)</td></tr><tr><td><b>black keys 7–11</b></td><td>CLR (clear the track), ◀ ▶ (shift the track), NEW (whole groove anew), UNDO</td></tr><tr><td><b>SELECT</b>, <b>OCT− / OCT+</b></td><td>pick a track</td></tr><tr><td><b>ALGORITHM</b></td><td>the track's loop length, 1 to 16 steps</td></tr><tr><td><b>PRESETS</b></td><td>pattern A to D; while playing, from the next bar</td></tr><tr><td><b>SEL</b></td><td>roll the track anew</td></tr><tr><td><b>ARP</b></td><td>change the track a little (mutate)</td></tr><tr><td><b>LFO</b></td><td>tap: mute the track; hold: solo</td></tr><tr><td><b>REC</b></td><td>the keys play the track chromatically; recorded while the groove runs</td></tr><tr><td><b>SAVE</b></td><td>tap: save; hold + PRESETS: copy the pattern; hold + SELECT: copy the track</td></tr><tr><td><b>MASTER</b></td><td>volume</td></tr></tbody></table></div>
+<h2 id="pages">Pages</h2>
+<p>The buttons above the knobs choose what <b>KNOB1</b> to <b>KNOB4</b> do. A second press on the same button opens its second page. The page's name is shown low on the screen.</p>
+<div class="tw"><table><thead><tr><th>Button</th><th>Page</th><th>K1</th><th>K2</th><th>K3</th><th>K4</th></tr></thead><tbody><tr><td><b>HOME</b></td><td>GROOVE</td><td>TEMPO</td><td>SWING</td><td>SEKO</td><td>DUCK</td></tr><tr><td><b>EDIT</b></td><td>SOUND</td><td>p1</td><td>p2</td><td>p3</td><td>p4</td></tr><tr><td><b>EDIT ×2</b></td><td>SOUND 2</td><td>p5</td><td>p6</td><td>p7</td><td>p8</td></tr><tr><td><b>ENV</b></td><td>MIX</td><td>LEVEL</td><td>PAN</td><td>DELAY</td><td>REVERB</td></tr><tr><td><b>ENV ×2</b></td><td>8-BIT</td><td>BITS</td><td>RATE</td><td></td><td></td></tr><tr><td><b>FX</b></td><td>FX</td><td>D.TIME</td><td>D.FDBK</td><td>R.SIZE</td><td>R.DAMP</td></tr><tr><td><b>FX ×2</b></td><td>SIDECHAIN</td><td>SOURCE</td><td>DEPTH</td><td>RELEASE</td><td>AMOUNT</td></tr><tr><td><b>GLO</b></td><td>GLOBAL</td><td>ROOT</td><td>SCALE</td><td>CLOCK</td><td>CHAIN</td></tr><tr><td><b>GLO ×2</b></td><td>GLOBAL 2</td><td>XPOSE</td><td>DRIVE</td><td></td><td></td></tr><tr><td><b>SEQ</b></td><td>EUCLID</td><td>HITS</td><td>ROTATE</td><td>CHANCE</td><td>ACCENT</td></tr><tr><td><b>SEQ ×2</b></td><td>LINK</td><td>SOURCE</td><td>MODE</td><td></td><td></td></tr><tr><td><b>SEQ ×3</b></td><td>TIMING</td><td>STEP n</td><td>TRACK</td><td></td><td></td></tr></tbody></table></div>
+<p>p1 to p8 are the chosen track's eight sound knobs (below).</p>
+<h2 id="sounds">Sounds</h2>
+<p>Each track has eight sound knobs: four on <b>EDIT</b>, four on <b>EDIT²</b> (press EDIT twice). Factory values run from 0 to 127.</p>
+<h3 id="potku">POTKU</h3>
+<p>psy kick: a sine with a deep, fast pitch sweep, click, soft clipper</p>
+<div class="tw"><table><thead><tr><th>Page</th><th>Knob</th><th>Name</th><th>Factory</th><th>What it does</th></tr></thead><tbody><tr><td>EDIT</td><td>K1</td><td><b>TUNE</b></td><td>48</td><td>the kick's pitch</td></tr><tr><td>EDIT</td><td>K2</td><td><b>DECAY</b></td><td>58</td><td>how long it rings</td></tr><tr><td>EDIT</td><td>K3</td><td><b>SWEEP</b></td><td>62</td><td>how far the pitch falls: the psy 'tok'</td></tr><tr><td>EDIT</td><td>K4</td><td><b>DRIVE</b></td><td>40</td><td>saturation</td></tr><tr><td>EDIT²</td><td>K1</td><td><b>SNAP</b></td><td>40</td><td>how fast the sweep falls</td></tr><tr><td>EDIT²</td><td>K2</td><td><b>CLICK</b></td><td>50</td><td>the click at the start</td></tr><tr><td>EDIT²</td><td>K3</td><td><b>HOLD</b></td><td>20</td><td>full level held before it falls (up to 86 ms)</td></tr><tr><td>EDIT²</td><td>K4</td><td>(free)</td><td></td><td></td></tr></tbody></table></div>
+<h3 id="basso">BASSO</h3>
+<p>filter bass with sub, galloping between the kicks, octave jumps and slides</p>
+<div class="tw"><table><thead><tr><th>Page</th><th>Knob</th><th>Name</th><th>Factory</th><th>What it does</th></tr></thead><tbody><tr><td>EDIT</td><td>K1</td><td><b>CUTOFF</b></td><td>52</td><td>the low-pass's cutoff (18 dB)</td></tr><tr><td>EDIT</td><td>K2</td><td><b>RESO</b></td><td>40</td><td>resonance</td></tr><tr><td>EDIT</td><td>K3</td><td><b>ENVMOD</b></td><td>60</td><td>how far the envelope opens the filter</td></tr><tr><td>EDIT</td><td>K4</td><td><b>DECAY</b></td><td>34</td><td>decay of level and filter</td></tr><tr><td>EDIT²</td><td>K1</td><td><b>WAVE</b></td><td>0</td><td>saw (0) to square (127)</td></tr><tr><td>EDIT²</td><td>K2</td><td><b>SUB</b></td><td>40</td><td>a sine an octave below</td></tr><tr><td>EDIT²</td><td>K3</td><td><b>GLIDE</b></td><td>50</td><td>glide time on a slide</td></tr><tr><td>EDIT²</td><td>K4</td><td><b>DRIVE</b></td><td>40</td><td>distortion before the filter</td></tr></tbody></table></div>
+<h3 id="hattu">HATTU</h3>
+<p>hats and shakers: FM metal, noise and an 8-bit noise channel</p>
+<div class="tw"><table><thead><tr><th>Page</th><th>Knob</th><th>Name</th><th>Factory</th><th>What it does</th></tr></thead><tbody><tr><td>EDIT</td><td>K1</td><td><b>DECAY</b></td><td>40</td><td>how long it rings</td></tr><tr><td>EDIT</td><td>K2</td><td><b>TONE</b></td><td>72</td><td>pitch of the metal</td></tr><tr><td>EDIT</td><td>K3</td><td><b>METAL</b></td><td>70</td><td>noise (0) to FM metal (127)</td></tr><tr><td>EDIT</td><td>K4</td><td><b>OPEN</b></td><td>64</td><td>how far an accent opens the hat</td></tr><tr><td>EDIT²</td><td>K1</td><td><b>CHIP</b></td><td>0</td><td>blend with the 8-bit noise channel (LFSR)</td></tr><tr><td>EDIT²</td><td>K2</td><td><b>SHAKE</b></td><td>0</td><td>a soft attack: a shaker instead of a hat</td></tr><tr><td>EDIT²</td><td>K3</td><td>(free)</td><td></td><td></td></tr><tr><td>EDIT²</td><td>K4</td><td>(free)</td><td></td><td></td></tr></tbody></table></div>
+<h3 id="happo">HAPPO</h3>
+<p>a 303-style acid line: saw/square, 18 dB resonant filter, accent, slide</p>
+<div class="tw"><table><thead><tr><th>Page</th><th>Knob</th><th>Name</th><th>Factory</th><th>What it does</th></tr></thead><tbody><tr><td>EDIT</td><td>K1</td><td><b>CUTOFF</b></td><td>58</td><td>cutoff: the acid line</td></tr><tr><td>EDIT</td><td>K2</td><td><b>RESO</b></td><td>96</td><td>resonance, up to just before it whistles</td></tr><tr><td>EDIT</td><td>K3</td><td><b>ENVMOD</b></td><td>74</td><td>filter envelope</td></tr><tr><td>EDIT</td><td>K4</td><td><b>DECAY</b></td><td>44</td><td>decay; accents ring longer</td></tr><tr><td>EDIT²</td><td>K1</td><td><b>WAVE</b></td><td>0</td><td>saw to square</td></tr><tr><td>EDIT²</td><td>K2</td><td><b>ACCENT</b></td><td>90</td><td>how hard an accent kicks filter and level</td></tr><tr><td>EDIT²</td><td>K3</td><td><b>GLIDE</b></td><td>60</td><td>glide time on a slide</td></tr><tr><td>EDIT²</td><td>K4</td><td><b>DRIVE</b></td><td>60</td><td>distortion</td></tr></tbody></table></div>
+<h3 id="piip">PIIP</h3>
+<p>an 8-bit melody like a sound chip: pulse waves, arpeggios, vibrato, bend</p>
+<div class="tw"><table><thead><tr><th>Page</th><th>Knob</th><th>Name</th><th>Factory</th><th>What it does</th></tr></thead><tbody><tr><td>EDIT</td><td>K1</td><td><b>WAVE</b></td><td>30</td><td>sound-chip wave: pulse 12/25/50 %, 4-bit triangle, saw, pitched noise</td></tr><tr><td>EDIT</td><td>K2</td><td><b>DECAY</b></td><td>46</td><td>how long it rings</td></tr><tr><td>EDIT</td><td>K3</td><td><b>ARP</b></td><td>40</td><td>a chord as a fast arpeggio: OFF OCT MIN MAJ SUS4 5+8 DIM</td></tr><tr><td>EDIT</td><td>K4</td><td><b>VIBRATO</b></td><td>30</td><td>vibrato depth</td></tr><tr><td>EDIT²</td><td>K1</td><td><b>SPEED</b></td><td>64</td><td>speed of arpeggio and vibrato</td></tr><tr><td>EDIT²</td><td>K2</td><td><b>PWM</b></td><td>30</td><td>pulse-width modulation</td></tr><tr><td>EDIT²</td><td>K3</td><td><b>BEND</b></td><td>64</td><td>pitch at the start: from below (−) or above (+)</td></tr><tr><td>EDIT²</td><td>K4</td><td><b>DETUNE</b></td><td>0</td><td>a second, detuned oscillator</td></tr></tbody></table></div>
+<h3 id="outo">OUTO</h3>
+<p>'weird': FM zaps, lasers, bubbles, squeaks; every hit different</p>
+<div class="tw"><table><thead><tr><th>Page</th><th>Knob</th><th>Name</th><th>Factory</th><th>What it does</th></tr></thead><tbody><tr><td>EDIT</td><td>K1</td><td><b>DECAY</b></td><td>60</td><td>how long it rings</td></tr><tr><td>EDIT</td><td>K2</td><td><b>FM</b></td><td>80</td><td>FM index: how weird</td></tr><tr><td>EDIT</td><td>K3</td><td><b>RATIO</b></td><td>48</td><td>the operators' frequency ratio</td></tr><tr><td>EDIT</td><td>K4</td><td><b>ZAP</b></td><td>100</td><td>laser: pitch falls from above (+) or rises from below (−)</td></tr><tr><td>EDIT²</td><td>K1</td><td><b>ZTIME</b></td><td>50</td><td>length of the zap</td></tr><tr><td>EDIT²</td><td>K2</td><td><b>FEEDBK</b></td><td>40</td><td>modulator feedback: growl</td></tr><tr><td>EDIT²</td><td>K3</td><td><b>WOBBLE</b></td><td>0</td><td>pitch LFO: bubbling</td></tr><tr><td>EDIT²</td><td>K4</td><td><b>RANDOM</b></td><td>50</td><td>each hit a little different</td></tr></tbody></table></div>
+<h3 id="factory-mix">Factory mix</h3>
+<div class="tw"><table><thead><tr><th>Track</th><th>Level</th><th>Pan</th><th>Delay</th><th>Reverb</th></tr></thead><tbody><tr><td><b>POTKU</b></td><td>122</td><td>C</td><td>0</td><td>0</td></tr><tr><td><b>BASSO</b></td><td>108</td><td>C</td><td>0</td><td>0</td></tr><tr><td><b>HATTU</b></td><td>84</td><td>R12</td><td>14</td><td>14</td></tr><tr><td><b>HAPPO</b></td><td>84</td><td>L12</td><td>60</td><td>20</td></tr><tr><td><b>PIIP</b></td><td>76</td><td>R16</td><td>70</td><td>40</td></tr><tr><td><b>OUTO</b></td><td>80</td><td>C</td><td>60</td><td>50</td></tr></tbody></table></div>
+<h2 id="the-sequencer">The sequencer</h2>
+<ul><li><b>Polymetre:</b> each track has its own loop length (ALGORITHM). HAPPO on 14 against the kick's 16 repeats only after seven bars.</li><li><b>Chance</b> per step, <b>ratchets</b> of up to four hits, <b>accents</b>.</li><li><b>Slides</b> on BASSO, HAPPO and PIIP: the sound glides to the new note without a new attack. The glide time is GLIDE (fixed on PIIP). A slide is only heard while the previous note still sounds.</li><li><b>Parameter locks:</b> on EDIT, hold a white key and turn K1 to K4: the value holds for that step alone. The generator gives OUTO its own locks on every step, which is why each zap sounds different.</li><li><b>EUCLID</b> (SEQ): hits spread as evenly as the loop allows, with rotation, chance and an accent on every n-th hit.</li><li><b>LINK</b> (SEQ ×2): the track plays depending on another: WITH only when the source hits, GAPS only in its gaps, AFTER a step later. A muted source still counts.</li><li><b>TIMING</b> (SEQ ×3): SELECT walks from hit to hit, K1 shifts the hit, K2 the whole track.</li></ul>
+<h2 id="seko">SEKO</h2>
+<p>SEKO on the HOME page is the suomisaundi knob. At 0 the sequencer plays exactly what is programmed. The further up, the more often a step plays <b>something else</b>: a scale degree up or down, an octave off, with a slide or as a double hit; hats double or swap their accent. Filters and decays wander slowly too, and the level sways a little. The kick always stays where it is.</p>
+<h2 id="8-bit">8-bit</h2>
+<p>ENV twice opens the chosen track's <b>8-BIT</b> page:</p>
+<ul><li><b>BITS</b> rounds the signal to fewer and fewer levels (OFF, then coarser up to 127).</li><li><b>RATE</b> holds each value for several samples: the sample rate drops, the sound turns metallic and full of aliasing.</li></ul>
+<p>On top of that, PIIP (pulse waves, 4-bit triangle, pitched noise) and HATTU's CHIP knob (a shift register like a sound chip's) already sound 8-bit by themselves. The idea comes from memetek-fm1.</p>
+<h2 id="effects-and-sidechain">Effects and sidechain</h2>
+<ul><li><b>ENV</b>: level, pan and delay and reverb sends per track.</li><li><b>FX</b>: delay time (1/16, 1/8, 3/16; the right side two thirds of it), feedback, reverb size, damping.</li><li><b>FX ×2</b> (SIDECHAIN): source (POTKU from the factory), depth, release and how much the chosen track is ducked. A muted source still ducks (ghost kick).</li><li><b>GLO ×2</b>: DRIVE saturates the sum, XPOSE transposes the pattern.</li></ul>
+<h2 id="patterns-chain-and-key">Patterns, chain and key</h2>
+<p>Four patterns, A to D. <b>PRESETS</b> switches them, while playing at the next bar. <b>CHAIN</b> (GLO) plays A-B, A-C or A-D in turn, four bars each. From the factory C and D are transposed by +3 and −2 semitones (XPOSE), so the chain changes key. Hold SAVE and turn PRESETS to copy the whole pattern, hold SAVE and turn SELECT to copy the track alone; letting go copies, UNDO in the destination takes it back.</p>
+<h2 id="global-values">Global values</h2>
+<div class="tw"><table><thead><tr><th>Name</th><th>Page</th><th>Factory</th><th>Range</th><th>What it does</th></tr></thead><tbody><tr><td><b>TEMPO</b></td><td>HOME</td><td>145</td><td>120 … 180</td><td>tempo in BPM</td></tr><tr><td><b>SWING</b></td><td>HOME</td><td>50</td><td>50 … 75</td><td>swing in %</td></tr><tr><td><b>SEKO</b></td><td>HOME</td><td>40</td><td>0 … 127</td><td>chaos: steps play differently now and then, sounds wander</td></tr><tr><td><b>DUCK</b></td><td>HOME / FX²</td><td>100</td><td>0 … 127</td><td>sidechain ducking depth</td></tr><tr><td><b>ROOT</b></td><td>GLO</td><td>F#1</td><td>24 … 47</td><td>root note (MIDI note)</td></tr><tr><td><b>SCALE</b></td><td>GLO</td><td>PHRDOM</td><td>0 … 127</td><td>scale (see below)</td></tr><tr><td><b>CLOCK</b></td><td>GLO</td><td>ON</td><td>0 … 1</td><td>send MIDI clock</td></tr><tr><td><b>DRIVE</b></td><td>GLO²</td><td>30</td><td>0 … 127</td><td>saturation of the sum</td></tr><tr><td><b>D.TIME</b></td><td>FX</td><td>3/16</td><td>0 … 2</td><td>delay time 1/16, 1/8, 3/16</td></tr><tr><td><b>D.FDBK</b></td><td>FX</td><td>60</td><td>0 … 127</td><td>delay feedback</td></tr><tr><td><b>R.SIZE</b></td><td>FX</td><td>60</td><td>0 … 127</td><td>reverb size</td></tr><tr><td><b>R.DAMP</b></td><td>FX</td><td>60</td><td>0 … 127</td><td>reverb damping</td></tr><tr><td><b>RELEASE</b></td><td>FX²</td><td>50</td><td>0 … 127</td><td>how fast the ducking lets go</td></tr></tbody></table></div>
+<h2 id="scales">Scales</h2>
+<p>The generator, SEKO and the tracks' notes follow the scale on GLO.</p>
+<div class="tw"><table><thead><tr><th>Scale</th><th>What it does</th></tr></thead><tbody><tr><td><b>MINOR</b></td><td>natural minor</td></tr><tr><td><b>PHRYG</b></td><td>phrygian: dark</td></tr><tr><td><b>PHRDOM</b></td><td>phrygian dominant: the psy scale (factory)</td></tr><tr><td><b>HARMIN</b></td><td>harmonic minor</td></tr><tr><td><b>DORIAN</b></td><td>dorian</td></tr><tr><td><b>MAJOR</b></td><td>major: the happy side of suomisaundi</td></tr><tr><td><b>PENTA</b></td><td>minor pentatonic</td></tr><tr><td><b>WHOLE</b></td><td>whole tone: weird</td></tr></tbody></table></div>
+<h2 id="midi">MIDI</h2>
+<ul><li><b>In:</b> channels 1 to 6 play the tracks (note 60 = the step's base note). Channel 10: 36 POTKU, 37–39 OUTO, 42 and 44 HATTU, 46 HATTU open. MIDI start and stop start and stop the groove.</li><li><b>Out:</b> MIDI clock, start and stop over USB when CLOCK on GLO is on.</li></ul>
+<h2 id="building-the-firmware">Building the firmware</h2>
+<pre>git clone --recursive https://github.com/g0rst/suom1saundi
+cd suom1saundi
+sh tests/run_tests.sh        # the core&#x27;s host tests
+./build.sh --host            # fm1-base&#x27;s simulator, then tests/run_tests.sh again
+sh sim/build.sh              # the browser emulator: docs/emulator.html
+./build.sh                   # the .fwsc package (needs JieLi&#x27;s toolchain and the AC79 SDK)
+python3 tools/manual.py      # update the manuals from the code</pre>
+<h2 id="where-it-comes-from">Where it comes from</h2>
+<p>The sequencer, controls and screen come from <a href="https://github.com/g0rst/ro-MINImal">ro:MINImal</a>, the 8-bit ideas from <a href="https://github.com/g0rst/memetek-fm1">memetek-fm1</a>, acid and filter ideas from <a href="https://github.com/g0rst/neur0psy">neur0psy</a>. The platform is <a href="https://github.com/charlesvestal/fm1-base">fm1-base</a> on felucca-bsp (MPL-2.0). suom1saundi itself is MIT. Not affiliated with M-VAVE.</p>
+<h2 id="versions">Versions</h2>
+<p>Current version: <b>0.1</b></p>
+<div class="tw"><table><thead><tr><th>Version</th><th>Date</th><th>Changes</th></tr></thead><tbody><tr><td><b>0.1</b></td><td>2026-11-17</td><td>First version: six voices, sequencer with slides and SEKO, 8-bit crusher, browser emulator, manual in three languages</td></tr></tbody></table></div>
+<div class="construct"><span>🚧 FOREVER UNDER CONSTRUCTION · REBUILT FROM THE CODE ON EVERY PUSH 🚧</span></div>
+</div>
+</main>
+<footer><p>visitors since 1997: <span class="counter">0004711</span></p>
+<p>MIT · <a href="https://github.com/g0rst/suom1saundi" style="color:#b6ff00">github.com/g0rst/suom1saundi</a></p></footer>
+</body>
+</html>

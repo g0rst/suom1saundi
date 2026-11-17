@@ -1,0 +1,55 @@
+# suom1saundi in fm1-base's host simulator: ./build.sh --host, then tests/run_tests.sh
+wait 600
+shot boot.png
+expect playing 0
+expect track 0
+expect bpm 145
+tap PLAY
+wait 100
+expect playing 1
+wav groove.wav
+wait 8000
+wavstop
+shot playing.png
+tap PLAY
+wait 50
+expect playing 0
+key 8 down
+wait 30
+key 8 up
+wait 30
+expect track 3
+key 15 down
+wait 30
+key 15 up
+wait 30
+expect steps 0
+key 0 down
+wait 30
+key 0 up
+wait 30
+expect steps 1
+turn ALGO 16
+wait 30
+turn ALGO -9
+wait 30
+expect len 7
+turn K1 -3
+wait 30
+expect bpm 142
+tap FX
+wait 30
+expect page 3
+shot fx.png
+tap LFO
+wait 30
+expect mute 1
+expect unsaved 1
+tap SAVE
+wait 50
+expect unsaved 0
+expect store_writes 1
+reboot
+wait 600
+expect bpm 142
+expect track 0
