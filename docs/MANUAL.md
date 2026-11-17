@@ -317,8 +317,9 @@ From the factory the FM-1 expects the map below. The easiest way is to set the S
 (M-VAVE's editor). Or the FM-1 learns the map the SMK-37 sends now:
 
 1. Press **GLO** three times: the **SMK-37** page.
-2. **SEL**: the screen guides you. Play a key (the C that should be the base note), hit pad 1, then turn K1 to K16 one
-   after the other and move F1 to F8 (for K9 to K16 and F5 to F8 press the SMK-37's BANK button first).
+2. **SEL**: the screen guides you. Play a key (the C that should be the base note), hit pad 1, switch PAD BANK on and
+   hit pad 17, then turn K1 to K16 one after the other, move F1 to F8 and press ◀ and ▶ last (for K9 to K16 press
+   KNOB BANK first, for F5 to F8 FADER BANK).
 3. **SEL** skips a control, **SAVE** ends the learning (the rest stays unassigned), **HOME** cancels.
 
 Endless knobs that send steps instead of positions are recognised while learning. **ARP** on the SMK-37 page brings
@@ -326,7 +327,7 @@ back the factory map. K1 on that page turns MAXI off; K2 to K4 set the channels 
 
 <!-- GEN:smk -->
 <!-- (written by tools/manual.py from the code: do not edit by hand) -->
-CC: channel 1
+CC: channel 1 · buttons under the display: KNOB BANK, FADER BANK, ◀, ▶, OCTAVE−, OCTAVE+
 
 | Control | MIDI (factory) | What it does on the FM-1 |
 |---|---|---|
@@ -373,10 +374,30 @@ CC: channel 1
 | **Pad 14** | note 49, channel 10 | MUTE OUTO |
 | **Pad 15** | note 50, channel 10 | NEW GROOVE |
 | **Pad 16** | note 51, channel 10 | UNDO |
+| **PAD BANK** (KNOB BANK + FADER BANK) | note 52–67, channel 10 | Pad 17–32: switch the chosen track's steps on and off (hard: with an accent) |
+| **◀ ▶** | CC 102, 103 | pattern back / on (while playing, at the next bar) |
+| **KNOB BANK** | – | knobs 9–16 |
+| **FADER BANK** | – | faders 5–8 |
+| **OCTAVE− / OCTAVE+** | – | move the keys by octaves; the SMK-37 does that itself, the FM-1 just hears other notes |
 <!-- /GEN:smk -->
 
 K1 to K4 write parameter locks while a white key is held on the FM-1. Pads 1 to 6 sound at once, with velocity; with
 **REC** and the groove running they are written, like the keys, into the step they fall on.
+
+### The six buttons under the display
+
+- **KNOB BANK** switches the knobs to K9 to K16 (LFO and channel), **FADER BANK** the faders to F5 to F8.
+- **PAD BANK:** press KNOB BANK and FADER BANK together. The pads become pads 17 to 32, and on the FM-1 those are the
+  **chosen track's 16 steps**: a hit switches a step on or off, a hard hit sets it with an accent. A step past the
+  loop's end makes the loop that long. So you program from the SMK-37 as on a drum machine: pick the track with pads 1
+  to 6 (PAD BANK off), set its steps with PAD BANK.
+- **◀ and ▶** switch the pattern (A to D), while playing at the next bar. Set them to CC 102 and 103 in MIDI SUITE, or
+  let the FM-1 learn them.
+- **OCTAVE− and OCTAVE+** move the keys by octaves. The SMK-37 does that itself; the FM-1 simply gets higher or lower
+  notes, on the chosen track and when recording with REC.
+
+In the emulator the virtual SMK-37 has the same six buttons under a small display showing the banks and the octave.
+With a mouse, shift-click on a BANK button toggles PAD BANK.
 
 ### What the SMK-37 takes over
 
@@ -474,10 +495,11 @@ MIT. Not affiliated with M-VAVE.
 
 <!-- GEN:version -->
 <!-- (written by tools/manual.py from the code: do not edit by hand) -->
-Current version: **0.2**
+Current version: **0.3**
 
 | Version | Date | Changes |
 |---|---|---|
 | **0.1** | 2026-11-17 | First version: six voices, sequencer with slides and SEKO, 8-bit crusher, browser emulator, manual in three languages |
 | **0.2** | 2026-11-17 | Generator with chords and motifs, new mixer (channel strips, TONE, master), an LFO per track, BODY/SPREAD/CUT, MAXI mode with the SMK-37 (map, learning, pads, faders), virtual SMK-37 and Web MIDI in the emulator, smaller code |
+| **0.3** | 2026-11-17 | SMK-37: the six buttons under the display; PAD BANK makes pads 17–32 the track's steps, ◀ ▶ switch the pattern, OCTAVE in the emulator; learning extended for them; project format version 3 |
 <!-- /GEN:version -->

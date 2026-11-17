@@ -66,7 +66,9 @@ Pro Spur dazu ein **LFO** im Takt (EDIT ×3) und ein Kanalzug im **Mixer** (ENV)
 **MAXI mit dem SMK-37:** MIDI-Kabel vom SMK-37 an die MIDI-Buchse des FM-1. Ab Werk: Tasten Kanal 1, Pads Kanal 10
 ab Note 36, Knobs CC 20–35, Fader CC 41–48 (in MIDI SUITE so einstellen, oder GLO ×3 und SEL: der FM-1 lernt die
 Belegung). K1–K8 Klangregler, K9–K16 LFO und Kanal, F1–F6 Pegel, F7/F8 Delay- und Hall-Return, Pads 1–6 spielen die
-Spuren, 7/8 NEW und MUTATE, 9–14 Mute, 15 neuer Groove, 16 UNDO, Mod-Rad SEKO, Pitchbend ±2 Halbtöne. Arpeggiator,
+Spuren, 7/8 NEW und MUTATE, 9–14 Mute, 15 neuer Groove, 16 UNDO, Mod-Rad SEKO, Pitchbend ±2 Halbtöne. Die sechs
+Tasten unter dem Display: KNOB BANK, FADER BANK, beide zusammen PAD BANK (Pads 17–32 = die 16 Steps der gewählten
+Spur, Note 52–67), ◀ ▶ Pattern (CC 102/103), OCTAVE−/+ verschieben die Tasten. Arpeggiator,
 Akkorde und Skalen liefert das SMK-37 selbst.
 
 Alles Weitere im [Handbuch](docs/HANDBUCH.md).

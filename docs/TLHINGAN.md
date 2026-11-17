@@ -212,10 +212,13 @@ SEKO 0: QoQ rap reH. SEKO Dun: Steps pIm, wab ghIr, SLIDE, cha' Steps. POTKU cho
 - MAXI: FM-1 SMK-37 je. SMK-37 leQmey, PADS, SeHmey: FM-1 SeH.
 - MIDI tlhegh yIlo' (3,5 mm). Bluetooth wIlo'be': FM-1 qawHaq mach.
 - **GLO** wejlogh yIyuv, **SEL** yIyuv: ghoj FM-1. **ARP**: wa'DIch SeHmey.
+- jIH bIng jav leQmey: KNOB BANK, FADER BANK, ◀, ▶, OCTAVE−, OCTAVE+.
+- KNOB BANK 'ej FADER BANK yIyuv nItebHa': PAD BANK. Pad 17–32: Steps chu' pagh.
+- ◀ ▶: nav ret, nav veb. OCTAVE: leQmey Dung bIng.
 
 <!-- GEN:smk -->
 <!-- (written by tools/manual.py from the code: do not edit by hand) -->
-CC: CH 1
+CC: CH 1 · jIH bIng leQmey: KNOB BANK, FADER BANK, ◀, ▶, OCTAVE−, OCTAVE+
 
 | SeH | MIDI | Qu' |
 |---|---|---|
@@ -262,6 +265,11 @@ CC: CH 1
 | **Pad 14** | NOTE 49, CH 10 | MUTE OUTO |
 | **Pad 15** | NOTE 50, CH 10 | NEW GROOVE |
 | **Pad 16** | NOTE 51, CH 10 | UNDO |
+| **PAD BANK** (KNOB BANK + FADER BANK) | NOTE 52–67, CH 10 | Pad 17–32: Steps chu' pagh |
+| **◀ ▶** | CC 102, 103 | nav ret / nav veb |
+| **KNOB BANK** | – | K9–K16 |
+| **FADER BANK** | – | F5–F8 |
+| **OCTAVE− / OCTAVE+** | – | leQmey Dung bIng |
 <!-- /GEN:smk -->
 
 ## 8-BIT
@@ -327,12 +335,13 @@ python3 tools/manual.py
 
 <!-- GEN:version -->
 <!-- (written by tools/manual.py from the code: do not edit by hand) -->
-DaH mI': **0.2**
+DaH mI': **0.3**
 
 | mI' | jaj | choH |
 |---|---|---|
 | **0.1** | 2026-11-17 | wa'DIch: jav ghogh, SLIDE SEKO je, 8-BIT, EMULATOR, wej Hol lo'meH paq |
 | **0.2** | 2026-11-17 | CHORD chu', wab ghom SeH chu', LFO, MAXI: SMK-37, EMULATOR SMK-37, ngoq mach |
+| **0.3** | 2026-11-17 | SMK-37: jIH bIng jav leQmey; PAD BANK: Steps; ◀ ▶: nav; OCTAVE |
 <!-- /GEN:version -->
 
 Qapla'!

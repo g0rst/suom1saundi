@@ -615,6 +615,16 @@ int main(int argc, char **argv)
     CHECK(ss_state(SS_Q_TRACK) == SS_PIIP, "pad 5: track %d", ss_state(SS_Q_TRACK));
     ss_midi_cc(0, 1, 99); frame(0);
     CHECK(ss_project()->seko == 99, "mod wheel: SEKO %d", ss_project()->seko);
+    /* PAD BANK: pad 17 + 2 toggles PIIP's step 3; ▶ (CC 103) the next pattern, ◀ (CC 102) back */
+    {
+        int was = ss_project()->pat[0].tr[SS_PIIP].step[2].flags & SS_ST_ON;
+        ss_midi_note(9, 52 + 2, 90); frame(0);
+        CHECK((ss_project()->pat[0].tr[SS_PIIP].step[2].flags & SS_ST_ON) != was, "PAD BANK: step 3 not toggled");
+        ss_midi_cc(0, 103, 127); ss_midi_cc(0, 103, 0); frame(0);
+        CHECK(ss_project()->cur_pat == 1, "right: pattern %d", ss_project()->cur_pat);
+        ss_midi_cc(0, 102, 127); frame(0);
+        CHECK(ss_project()->cur_pat == 0, "left: pattern %d", ss_project()->cur_pat);
+    }
     tap_button(SS_B_EDIT);
     snprintf(path, sizeof path, "%s/screen-maxi.ppm", out);
     write_screen(path);
@@ -632,12 +642,15 @@ int main(int argc, char **argv)
     write_screen(path);
     ss_midi_note(2, 48, 90); frame(0);
     ss_midi_note(3, 60, 90); frame(0);
+    ss_midi_note(3, 60, 90); frame(0);             /* pad 1 again: not pad 17 */
+    ss_midi_note(3, 76, 90); frame(0);
     ss_midi_cc(4, 70, 10); ss_midi_cc(4, 70, 11); ss_midi_cc(4, 70, 12); frame(0);
     ss_midi_cc(4, 71, 1); ss_midi_cc(4, 71, 1); ss_midi_cc(4, 71, 1); frame(0);
     tap_button(SS_B_SAVE);
     {
         const ss_smk_t *m = &ss_project()->smk;
         CHECK(ss_state(SS_Q_LEARN) == 0 && m->key_ch == 2 && m->key_base == 48 && m->pad_ch == 3 && m->pad_note == 60 &&
+              m->pad2_note == 76 && m->left_cc == 255 &&
               m->cc_ch == 4 && m->knob_cc[0] == 70 && m->knob_cc[1] == 71 && m->knob_cc[2] == 255 &&
               m->knob_rel == 2 && m->rel_kind == 0 && m->fader_cc[0] == 255,
               "learned: keys %d/%d pads %d/%d cc ch %d knobs %d %d %d rel %x/%d", m->key_ch, m->key_base, m->pad_ch,

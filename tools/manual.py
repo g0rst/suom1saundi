@@ -270,7 +270,14 @@ def gen_smk(core, lang):
                   "play the chosen track; C4 is its base note; REC while playing records", "tlhegh QoQ"),
          "snd": ("Klang p", "sound p", "wab p"),
          "lvl": ("Pegel", "level", "HoS"), "wheel": ("Mod-Rad", "mod wheel", "MOD"),
-         "bend": ("Pitchbend", "pitch bend", "BEND"), "bendd": ("biegt die gewählte Spur ±2 Halbtöne", "bends the chosen track ±2 semitones", "wab ghIr")}
+         "bend": ("Pitchbend", "pitch bend", "BEND"), "bendd": ("biegt die gewählte Spur ±2 Halbtöne", "bends the chosen track ±2 semitones", "wab ghIr"),
+         "step": ("Step", "step", "Step"), "steps": ("schalten die Steps der gewählten Spur an und aus (kräftig: mit Akzent)",
+                                                     "switch the chosen track's steps on and off (hard: with an accent)", "Steps chu' pagh"),
+         "pat": ("Pattern zurück / vor (beim Spielen zum nächsten Takt)", "pattern back / on (while playing, at the next bar)", "nav ret / nav veb"),
+         "oct": ("verschieben die Tasten um Oktaven; das macht das SMK-37 selbst, der FM-1 hört nur andere Noten",
+                 "move the keys by octaves; the SMK-37 does that itself, the FM-1 just hears other notes", "leQmey Dung bIng"),
+         "kb": ("Knobs 9–16", "knobs 9–16", "K9–K16"), "fb": ("Fader 5–8", "faders 5–8", "F5–F8"),
+         "under": ("Tasten unter dem Display", "buttons under the display", "jIH bIng leQmey")}
     t = lambda k: T[k][i]
     trk = core["tracks"]
     rows = [(f"**{t('keys')}**", f"{t('ch')} {val['key_ch'] + 1}", t("play"))]
@@ -285,7 +292,13 @@ def gen_smk(core, lang):
     pads = [f"{trk[p]}" for p in range(6)] + ["NEW", "MUTATE"] + [f"MUTE {trk[p]}" for p in range(6)] + ["NEW GROOVE", "UNDO"]
     for p, what in enumerate(pads):
         rows.append((f"**Pad {p + 1}**", f"{t('note')} {val['pad_note'] + p}, {t('ch')} {val['pad_ch'] + 1}", what))
-    knobs_ch = f"CC: {t('ch')} {val['cc_ch'] + 1}"
+    rows.append((f"**PAD BANK** (KNOB BANK + FADER BANK)", f"{t('note')} {val['pad2_note']}–{val['pad2_note'] + 15}, {t('ch')} {val['pad_ch'] + 1}",
+                 f"Pad 17–32: {t('steps')}"))
+    rows.append(("**◀ ▶**", f"CC {val['left_cc']}, {val['right_cc']}", t("pat")))
+    rows.append(("**KNOB BANK**", "–", t("kb")))
+    rows.append(("**FADER BANK**", "–", t("fb")))
+    rows.append(("**OCTAVE− / OCTAVE+**", "–", t("oct")))
+    knobs_ch = f"CC: {t('ch')} {val['cc_ch'] + 1} · {t('under')}: KNOB BANK, FADER BANK, ◀, ▶, OCTAVE−, OCTAVE+"
     return f"{knobs_ch}\n\n" + table([t("ctl"), t("msg"), t("does")], rows)
 
 

@@ -75,7 +75,7 @@ typedef struct {
  * controls sends is set in its MIDI SUITE; the FM-1 takes the factory map below, or learns another (GLO x3, SEL) */
 #define SS_SMK_KNOBS 16                 /* K1..K8 and, with KNOB BANK, K9..K16 */
 #define SS_SMK_FADERS 8                 /* F1..F4 and, with FADER BANK, F5..F8 */
-#define SS_SMK_PADS 16
+#define SS_SMK_PADS 16                  /* 1..16; with PAD BANK (KNOB BANK and FADER BANK together) 17..32 */
 typedef struct {
     uint8_t on;                         /* 1: MAXI */
     uint8_t key_ch, key_base;           /* the keys: channel 0..15, the note that plays a track's base note */
@@ -85,7 +85,8 @@ typedef struct {
     uint8_t fader_cc[SS_SMK_FADERS];
     uint16_t knob_rel;                  /* bit k: knob k sends steps, not positions */
     uint8_t rel_kind;                   /* steps as 1 / 127 (0), or as 65 / 63 (1) */
-    uint8_t rsv;
+    uint8_t pad2_note;                  /* PAD BANK: pad 17's note (16 notes on from it), 255: none */
+    uint8_t left_cc, right_cc;          /* the buttons under the display, ◀ and ▶: their CCs (255: none) */
 } ss_smk_t;
 
 typedef struct {
@@ -114,7 +115,7 @@ typedef struct {
 } ss_project_t;
 
 #define SS_MAGIC 0x314F5553u          /* "SUO1" */
-#define SS_VERSION 2u
+#define SS_VERSION 3u
 
 /* ---- life cycle ---- */
 void ss_init(uint32_t seed);          /* tables, defaults and a first groove generated from seed */

@@ -697,6 +697,11 @@ void ss_midi_note(uint32_t channel, uint32_t note, uint32_t velocity)
         mq_push(MQ_KEY, channel, note, velocity);
         return;
     }
+    if (m->on && channel == m->pad_ch && m->pad2_note != 255u && note >= m->pad2_note &&
+        note < (uint32_t)m->pad2_note + SS_SMK_PADS && !(note >= m->pad_note && note < (uint32_t)m->pad_note + SS_SMK_PADS)) {
+        mq_push(MQ_PAD, channel, SS_SMK_PADS + (note - m->pad2_note), velocity);   /* PAD BANK: the steps */
+        return;
+    }
     if (m->on && channel == m->pad_ch && note >= m->pad_note && note < (uint32_t)m->pad_note + SS_SMK_PADS) {
         uint32_t pad = note - m->pad_note;
         if (pad < SS_TRACKS)            /* pads 1..6 play the six tracks */
@@ -1402,7 +1407,8 @@ static uint32_t prj_sum(const ss_project_t *p)
 
 /* the SMK-37 map the FM-1 expects from the factory (set the same in the SMK-37's MIDI SUITE, or learn another):
  * keys on channel 1, middle C plays a track's base note; pads on channel 10 from note 36; knobs and faders on
- * channel 1, K1..K16 CC 20..35, F1..F8 CC 41..48 */
+ * channel 1, K1..K16 CC 20..35, F1..F8 CC 41..48; PAD BANK's pads 17..32 from note 52; ◀ ▶ CC 102, 103. OCTAVE-
+ * and OCTAVE+ need nothing here: the SMK-37 moves its keys' notes itself */
 static void smk_preset(ss_smk_t *m)
 {
     int i;
@@ -1418,7 +1424,9 @@ static void smk_preset(ss_smk_t *m)
         m->fader_cc[i] = (uint8_t)(41 + i);
     m->knob_rel = 0;
     m->rel_kind = 0;
-    m->rsv = 0;
+    m->pad2_note = 52;                  /* PAD BANK: pads 17..32 on notes 52..67 */
+    m->left_cc = 102;                   /* ◀ and ▶ under the display: CC 102 and 103 */
+    m->right_cc = 103;
 }
 
 static void prj_sanitize(ss_project_t *p)
@@ -1439,6 +1447,12 @@ static void prj_sanitize(ss_project_t *p)
     LIM(p->smk.key_base, 0, 127);
     LIM(p->smk.pad_note, 0, 112);
     LIM(p->smk.rel_kind, 0, 1);
+    if (p->smk.pad2_note > 112)
+        p->smk.pad2_note = 255;
+    if (p->smk.left_cc > 127)
+        p->smk.left_cc = 255;
+    if (p->smk.right_cc > 127)
+        p->smk.right_cc = 255;
     for (i = 0; i < SS_SMK_KNOBS; i++)
         if (p->smk.knob_cc[i] > 127)
             p->smk.knob_cc[i] = 255;
@@ -1935,7 +1949,8 @@ static int held_step(void)              /* the lowest held white key in step mod
 }
 
 /* MAXI's learning, step by step: a key, the first pad, the knobs, the faders */
-enum { LEARN_KEY = 1, LEARN_PAD, LEARN_KNOB, LEARN_FADER = LEARN_KNOB + SS_SMK_KNOBS, LEARN_END = LEARN_FADER + SS_SMK_FADERS };
+enum { LEARN_KEY = 1, LEARN_PAD, LEARN_PAD2, LEARN_KNOB, LEARN_FADER = LEARN_KNOB + SS_SMK_KNOBS,
+       LEARN_LEFT = LEARN_FADER + SS_SMK_FADERS, LEARN_RIGHT, LEARN_END };
 
 static int is_mixer(void) { return R.page == SS_PG_MIX || R.page == SS_PG_CHAN || R.page == SS_PG_MASTER; }
 /* MAXI on the sound pages: all eight sound knobs at once, as the SMK-37's K1..K8 */
@@ -2026,10 +2041,14 @@ static void draw_learn(void)
     t[0] = 0;
     if (s == LEARN_KEY) cat(t, "PLAY MIDDLE C");
     else if (s == LEARN_PAD) cat(t, "HIT PAD 1");
+    else if (s == LEARN_PAD2) cat(t, "HIT PAD 17");
     else if (s < LEARN_FADER) { cat(t, "TURN K"); cat_int(t, s - LEARN_KNOB + 1); }
-    else { cat(t, "MOVE F"); cat_int(t, s - LEARN_FADER + 1); }
+    else if (s < LEARN_LEFT) { cat(t, "MOVE F"); cat_int(t, s - LEARN_FADER + 1); }
+    else cat(t, s == LEARN_LEFT ? "PRESS LEFT" : "PRESS RIGHT");
     text(4, PARAM_Y + 16, t, C_FG, 2);
-    text(4, PARAM_Y + 40, s >= LEARN_KNOB + 8 ? "BANK BUTTON FIRST  SEL SKIP" : "SEL SKIP", C_DIM, 1);
+    text(4, PARAM_Y + 40, s == LEARN_PAD2 ? "KNOB+FADER BANK FIRST  SEL SKIP" :
+                          (s >= LEARN_KNOB + 8 && s < LEARN_FADER) || (s >= LEARN_FADER + 4 && s < LEARN_LEFT) ?
+                          "BANK BUTTON FIRST  SEL SKIP" : "SEL SKIP", C_DIM, 1);
 }
 
 void ss_draw(uint16_t *px, int strip)
@@ -2256,6 +2275,18 @@ static void keep_undo(void)
 }
 static int clampi(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
 
+static void pattern_step(int d)         /* the next or the previous pattern: at the next bar while playing */
+{
+    int cur = R.pending_pat != 0xFFu ? R.pending_pat : R.prj.cur_pat;
+    int p = clampi(cur + d, 0, SS_PATTERNS - 1);
+    R.eu_armed = 1;
+    if (R.playing)
+        R.pending_pat = (uint8_t)(p == R.prj.cur_pat ? 0xFF : p);
+    else
+        R.prj.cur_pat = (uint8_t)p;
+    R.dirty |= STRIP_ALL;
+}
+
 static void new_groove(void)
 {
     int k;
@@ -2320,6 +2351,20 @@ static void smk_input(int hs)
                 m->pad_ch = ch;
                 m->pad_note = (uint8_t)(a > 112 ? 112 : a);
                 R.learn++;
+            } else if (kind == MQ_KEY && s == LEARN_PAD2 && b && ch == m->pad_ch && a != m->pad_note) {
+                m->pad2_note = (uint8_t)(a > 112 ? 112 : a);
+                R.learn++;
+            } else if (kind == MQ_CC && s >= LEARN_LEFT) {   /* ◀ ▶: a press, any CC not used yet */
+                if (b && a != m->left_cc) {
+                    for (k = 0; k < SS_SMK_KNOBS && m->knob_cc[k] != a; k++) {}
+                    if (k == SS_SMK_KNOBS) {
+                        for (k = 0; k < SS_SMK_FADERS && m->fader_cc[k] != a; k++) {}
+                        if (k == SS_SMK_FADERS) {
+                            *(s == LEARN_LEFT ? &m->left_cc : &m->right_cc) = a;
+                            R.learn++;
+                        }
+                    }
+                }
             } else if (kind == MQ_CC && s >= LEARN_KNOB) {
                 int used = 0;
                 for (k = 0; k < SS_SMK_KNOBS; k++)
@@ -2369,6 +2414,16 @@ static void smk_input(int hs)
             char val[8];
             const char *name = 0;
             int v = -1;
+            if (ch == m->cc_ch && (a == m->left_cc || a == m->right_cc)) {   /* ◀ ▶: the pattern */
+                if (!b)
+                    continue;
+                pattern_step(a == m->left_cc ? -1 : 1);
+                R.smk_seen = 1;
+                val[0] = (char)('A' + (R.pending_pat != 0xFFu ? R.pending_pat : R.prj.cur_pat));
+                val[1] = 0;
+                ss_message("PATTERN", val);
+                continue;
+            }
             if (a == 1u && ch == m->key_ch) {   /* the mod wheel: SEKO */
                 R.prj.seko = b;
                 name = "SEKO";
@@ -2420,7 +2475,21 @@ static void smk_input(int hs)
             record_hit(R.track, (int)a - 64, b);
         } else if (kind == MQ_PAD) {    /* ---- the pads */
             R.smk_seen = 1;
-            if (a < SS_TRACKS) {        /* 1..6: the tracks, played, chosen, recorded with REC */
+            if (a >= SS_SMK_PADS) {     /* PAD BANK, 17..32: the chosen track's 16 steps, on and off */
+                ss_track_t *tr = &PAT->tr[R.track];
+                char st[8];
+                a = (uint8_t)(a - SS_SMK_PADS);
+                tr->step[a].flags ^= SS_ST_ON;
+                if ((tr->step[a].flags & SS_ST_ON) && b > 100)
+                    tr->step[a].flags |= SS_ST_ACC;
+                if (a >= tr->len)       /* a step past the loop: the loop grows to it */
+                    tr->len = (uint8_t)(a + 1u);
+                st[0] = 0;
+                cat(st, "STEP ");
+                cat_int(st, a + 1);
+                ss_message(st, tr->step[a].flags & SS_ST_ON ? "ON" : "OFF");
+                changed();
+            } else if (a < SS_TRACKS) { /* 1..6: the tracks, played, chosen, recorded with REC */
                 R.track = a;
                 R.eu_armed = 1;
                 record_hit(a, 0, b);
@@ -2478,18 +2547,28 @@ void ss_input(uint32_t buttons, uint32_t keys, const int32_t enc[SS_NE], uint32_
         if (pressed & 1u << SS_B_SEL) {
             if (R.learn >= LEARN_KNOB && R.learn < LEARN_FADER)
                 m->knob_cc[R.learn - LEARN_KNOB] = 255;
-            else if (R.learn >= LEARN_FADER)
+            else if (R.learn >= LEARN_FADER && R.learn < LEARN_LEFT)
                 m->fader_cc[R.learn - LEARN_FADER] = 255;
+            else if (R.learn == LEARN_PAD2)
+                m->pad2_note = 255;
+            else if (R.learn == LEARN_LEFT)
+                m->left_cc = 255;
+            else if (R.learn == LEARN_RIGHT)
+                m->right_cc = 255;
             R.learn_n = 0;
             if (++R.learn >= LEARN_END)
                 R.learn = 0;
         }
         if (pressed & 1u << SS_B_SAVE) {   /* the rest: nothing */
-            while (R.learn >= LEARN_KNOB && R.learn < LEARN_END) {
-                if (R.learn < LEARN_FADER)
+            while (R.learn >= LEARN_PAD2 && R.learn < LEARN_END) {
+                if (R.learn == LEARN_PAD2)
+                    m->pad2_note = 255;
+                else if (R.learn < LEARN_FADER)
                     m->knob_cc[R.learn - LEARN_KNOB] = 255;
-                else
+                else if (R.learn < LEARN_LEFT)
                     m->fader_cc[R.learn - LEARN_FADER] = 255;
+                else
+                    *(R.learn == LEARN_LEFT ? &m->left_cc : &m->right_cc) = 255;
                 R.learn++;
             }
             R.learn = 0;
@@ -2657,14 +2736,7 @@ void ss_input(uint32_t buttons, uint32_t keys, const int32_t enc[SS_NE], uint32_
         changed();
     }
     if (e_pre) {                        /* the pattern: at the next bar while playing */
-        int cur = R.pending_pat != 0xFFu ? R.pending_pat : R.prj.cur_pat;
-        int p = clampi(cur + e_pre, 0, SS_PATTERNS - 1);
-        R.eu_armed = 1;
-        if (R.playing)
-            R.pending_pat = (uint8_t)(p == R.prj.cur_pat ? 0xFF : p);
-        else
-            R.prj.cur_pat = (uint8_t)p;
-        R.dirty |= STRIP_ALL;
+        pattern_step(e_pre);
         tr = &PAT->tr[R.track];
     }
 
@@ -2682,6 +2754,7 @@ void ss_input(uint32_t buttons, uint32_t keys, const int32_t enc[SS_NE], uint32_
         for (k = 0; k < SS_SMK_FADERS; k++)
             R.prj.smk.fader_cc[k] = 255;
         R.prj.smk.knob_rel = 0;
+        R.prj.smk.pad2_note = R.prj.smk.left_cc = R.prj.smk.right_cc = 255;
         R.learn = LEARN_KEY;
         R.learn_n = 0;
         R.dirty |= STRIP_ALL;

@@ -151,11 +151,17 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--led); outli
 .pad.down { filter: brightness(1.7); }
 .bankb { border: 0; border-radius: 6px; padding: 7px 10px; background: #3a3d42; color: #e8e6e0; font: 600 13px var(--font); cursor: pointer; }
 .bankb.on { background: var(--led); color: #1d0716; }
+.smkhead { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.smkdisp { background: #0b1a12; color: #7dffb0; font: 600 13px/1.35 ui-monospace, Menlo, Consolas, monospace; border-radius: 6px;
+  padding: 8px 10px; box-shadow: inset 0 0 0 2px #1d3a2a; min-width: 220px; white-space: pre; }
+.smkbtns { display: grid; grid-template-columns: repeat(6, auto); gap: 6px; }
+.smkbtns .bankb { padding: 7px 8px; font-size: 12px; }
+.smkbtns small { grid-column: 1 / -1; color: #9aa0a3; font: 500 12px var(--font); }
 .smkkeys { display: flex; height: 70px; gap: 2px; flex: 1 1 100%; position: relative; }
 .smkkeys button { flex: 1; border: 0; border-radius: 0 0 4px 4px; background: #f3f4f2; cursor: pointer; touch-action: none; font: 600 10px var(--font); color: #777; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 3px; }
 .smkkeys button.bk { background: #111; color: #888; height: 62%; flex: .7; margin: 0 -1px; }
 .smkkeys button.down { background: var(--led); }
-@media (min-width: 760px) { .smk { grid-template-columns: auto auto 1fr; align-items: end; } .smk h2, .smkkeys { grid-column: 1 / -1; } }
+@media (min-width: 760px) { .smk { grid-template-columns: auto 1fr; align-items: end; } .smk h2, .smkkeys { grid-column: 1 / -1; } }
 @media (prefers-reduced-motion: reduce) { .btn.down, .pm button:active { transform: none; } }
 </style>
 </head>
@@ -188,8 +194,12 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--led); outli
   </div>
 
   <section class="smk" id="smk" aria-label="Virtuelles SMK-37 für den MAXI-Modus">
-    <h2>SMK-37 · MAXI <small>sendet die Werks-Belegung (Tasten Kanal 1, Pads Kanal 10 ab Note 36, Knobs CC 20–35, Fader CC 41–48)</small>
+    <h2>SMK-37 · MAXI <small>sendet die Werks-Belegung (Tasten Kanal 1, Pads Kanal 10 ab Note 36, PAD BANK ab Note 52, Knobs CC 20–35, Fader CC 41–48, ◀ ▶ CC 102/103)</small>
       <button class="bankb" id="webmidi" type="button">Echtes SMK-37 per Web MIDI</button></h2>
+    <div class="smkhead">
+      <div class="smkdisp" id="smkdisp" aria-live="polite"></div>
+      <div class="smkbtns" id="smkbtns"></div>
+    </div>
     <div class="grp" id="smkknobs"></div>
     <div class="grp" id="smkfaders"></div>
     <div class="pads" id="smkpads"></div>
@@ -212,7 +222,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--led); outli
     <ul>
       <li><b>HOME</b> Tempo, Swing, SEKO, Duck. SEKO (finnisch „verrückt“) lässt den Groove jedes Mal ein bisschen anders spielen.</li>
       <li><b>GLO</b> Grundton, Skala, MIDI-Clock, Chain. <b>GLO</b> nochmal: XPOSE und Akkord des Patterns, dreimal: SMK-37 (MAXI an/aus, Kanäle; SEL lernt die Belegung).</li>
-      <li><b>MAXI:</b> Das virtuelle SMK-37 unten (oder ein echtes per Web MIDI) steuert alles: K1–K8 die acht Klangregler, K9–K16 LFO und Kanal, F1–F6 die Pegel, F7/F8 Delay- und Hall-Return, Pads 1–6 spielen die Spuren, Mod-Rad SEKO.</li>
+      <li><b>MAXI:</b> Das virtuelle SMK-37 unten (oder ein echtes per Web MIDI) steuert alles: K1–K8 die acht Klangregler, K9–K16 LFO und Kanal, F1–F6 die Pegel, F7/F8 Delay- und Hall-Return, Pads 1–6 spielen die Spuren, Mod-Rad SEKO. Unter dem Display: KNOB BANK, FADER BANK, beide zusammen PAD BANK (Pads 17–32 = die 16 Steps der Spur), ◀ ▶ wechseln das Pattern, OCT− OCT+ verschieben die Tasten.</li>
       <li><b>FX</b> Delay und Reverb, <b>FX</b> nochmal: Sidechain.</li>
       <li><b>SAVE</b> kurz: speichern (hier im Browser). SAVE halten und <b>PRESETS</b>/<b>SELECT</b> drehen: Pattern oder Spur kopieren.</li>
       <li><b>PRESETS</b> wechselt Pattern A bis D zum nächsten Takt. <b>SEL</b> erzeugt die Spur neu, <b>ARP</b> verändert sie leicht. <b>LFO</b> kurz: stumm, halten: Solo. <b>REC</b>: Tasten spielen die Spur. Leertaste: PLAY.</li>
@@ -431,8 +441,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--led); outli
     var KN = ["K1", "K2", "K3", "K4", "K5", "K6", "K7", "K8"], knobBank = 0, faderBank = 0, kv = [], kel = [];
     var box = $("smkknobs"), i;
     for (i = 0; i < 16; i++) kv[i] = 64;
-    var kb = document.createElement("button"); kb.type = "button"; kb.className = "bankb"; kb.textContent = "KNOB BANK";
-    kb.addEventListener("click", function () { knobBank ^= 1; kb.classList.toggle("on", !!knobBank); relabel(); });
     KN.forEach(function (n, j) {
       var d = document.createElement("div"); d.className = "sk";
       var dial = document.createElement("button"); dial.type = "button"; dial.className = "dial"; dial.innerHTML = "<i></i>";
@@ -451,7 +459,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--led); outli
       d.appendChild(nm); d.appendChild(dial); d.appendChild(val); box.appendChild(d);
       kel[j] = { nm: nm, show: show };
     });
-    box.appendChild(kb);
     function relabel() { kel.forEach(function (e, j) { e.nm.textContent = "K" + (j + 1 + 8 * knobBank); e.show(); }); }
     relabel();
     /* faders: F1..F4, with FADER BANK F5..F8; and the mod wheel */
@@ -463,31 +470,77 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--led); outli
       r.addEventListener("input", function () { var k = j + 4 * faderBank; fv[k] = +r.value; midi(0xB0, 41 + k, fv[k]); });
       d.appendChild(r); d.appendChild(nm); fb.appendChild(d); fel[j] = { r: r, nm: nm };
     })(i);
-    var fbb = document.createElement("button"); fbb.type = "button"; fbb.className = "bankb"; fbb.textContent = "FADER BANK";
-    fbb.addEventListener("click", function () { faderBank ^= 1; fbb.classList.toggle("on", !!faderBank); flabel(); });
     function flabel() { fel.forEach(function (e, j) { var k = j + 4 * faderBank; e.nm.textContent = "F" + (k + 1); e.r.value = fv[k]; }); }
     var mw = document.createElement("div"); mw.className = "fd";
     var mr = document.createElement("input"); mr.type = "range"; mr.min = 0; mr.max = 127; mr.value = 40;
     mr.addEventListener("input", function () { midi(0xB0, 1, +mr.value); });
     var mn = document.createElement("div"); mn.textContent = "MOD";
-    mw.appendChild(mr); mw.appendChild(mn); fb.appendChild(mw); fb.appendChild(fbb); flabel();
+    mw.appendChild(mr); mw.appendChild(mn); fb.appendChild(mw); flabel();
     /* pads: two rows, 9..16 over 1..8 */
     var PN = ["POTKU", "BASSO", "HATTU", "HAPPO", "PIIP", "OUTO", "NEU", "MUTATE",
               "M POTKU", "M BASSO", "M HATTU", "M HAPPO", "M PIIP", "M OUTO", "GROOVE", "UNDO"];
-    var pb = $("smkpads"), order = [8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7];
+    var pb = $("smkpads"), order = [8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7], padBank = 0, pel = [];
+    function plabel() {
+      pel.forEach(function (o) {
+        var p = o.p;
+        o.b.className = "pad " + (padBank ? "f" : p < 6 ? "t" : p >= 8 && p < 14 ? "m" : "f");
+        o.b.innerHTML = padBank ? (p + 17) + "<br>STEP " + (p + 1) : (p + 1) + "<br>" + PN[p];
+      });
+    }
     order.forEach(function (p) {
       var b = document.createElement("button"); b.type = "button";
-      b.className = "pad " + (p < 6 ? "t" : p >= 8 && p < 14 ? "m" : "f"); b.innerHTML = (p + 1) + "<br>" + PN[p];
-      b.addEventListener("pointerdown", function (e) { e.preventDefault(); b.classList.add("down"); midi(0x99, 36 + p, 110); });
+      pel.push({ b: b, p: p });
+      b.addEventListener("pointerdown", function (e) { e.preventDefault(); b.classList.add("down"); midi(0x99, (padBank ? 52 : 36) + p, 110); });
       ["pointerup", "pointercancel", "pointerleave"].forEach(function (x) { b.addEventListener(x, function () { b.classList.remove("down"); }); });
       pb.appendChild(b);
     });
+    plabel();
     /* two octaves of keys from C3; the computer keyboard too (A W S E D F T G Y H U J K: C4 up) */
+    /* the six buttons under the display: KNOB BANK, FADER BANK (both together: PAD BANK), ◀ ▶ (CC 102, 103),
+     * OCTAVE- and OCTAVE+ (they move the keys here, as on the SMK-37; the FM-1 just hears other notes) */
+    var oct = 0, btns = $("smkbtns"), held = {}, combo = false;
+    function disp(last) {
+      $("smkdisp").textContent = "KNOB " + (knobBank ? "9-16" : "1-8") + "  FADER " + (faderBank ? "5-8" : "1-4") +
+        "\nPAD " + (padBank ? "17-32" : "1-16") + "  OCT " + (oct > 0 ? "+" : "") + oct + (last ? "\n" + last : "\n ");
+    }
+    function sbtn(label, down, up) {
+      var b = document.createElement("button"); b.type = "button"; b.className = "bankb"; b.textContent = label;
+      b.addEventListener("pointerdown", function (e) { e.preventDefault(); down(b, e); });
+      ["pointerup", "pointercancel", "pointerleave"].forEach(function (x) { b.addEventListener(x, function () { if (up) up(b); }); });
+      btns.appendChild(b);
+      return b;
+    }
+    function bank(which) {             /* a bank button: on its own its bank; held with the other, PAD BANK */
+      return [function (b, e) {
+        held[which] = b;
+        if (held[which === "k" ? "f" : "k"] || (e && e.shiftKey)) {
+          combo = true; padBank ^= 1; plabel(); disp(padBank ? "PAD BANK 17-32" : "PAD BANK 1-16");
+        }
+      }, function (b) {
+        if (!held[which]) return;
+        delete held[which];
+        if (!combo) {
+          if (which === "k") { knobBank ^= 1; relabel(); } else { faderBank ^= 1; flabel(); }
+          disp();
+        }
+        if (!held.k && !held.f) combo = false;
+        kbB.classList.toggle("on", !!knobBank); fbB.classList.toggle("on", !!faderBank);
+      }];
+    }
+    var kbA = bank("k"), fbA = bank("f");
+    var kbB = sbtn("KNOB BANK", kbA[0], kbA[1]), fbB = sbtn("FADER BANK", fbA[0], fbA[1]);
+    sbtn("◀", function () { midi(0xB0, 102, 127); disp("◀ CC 102: PATTERN -"); }, function () {});
+    sbtn("▶", function () { midi(0xB0, 103, 127); disp("▶ CC 103: PATTERN +"); }, function () {});
+    sbtn("OCT−", function () { oct = Math.max(-3, oct - 1); disp(); }, null);
+    sbtn("OCT+", function () { oct = Math.min(3, oct + 1); disp(); }, null);
+    var hint = document.createElement("small"); hint.textContent = "PAD BANK: KNOB BANK und FADER BANK zusammen drücken (mit der Maus: Shift-Klick auf eine der beiden)";
+    btns.appendChild(hint);
+    disp();
     var kk = $("smkkeys"), BLK = [1, 3, 6, 8, 10];
     for (i = 0; i < 25; i++) (function (n) {
       var b = document.createElement("button"); b.type = "button";
       if (BLK.indexOf(n % 12) >= 0) b.className = "bk"; else if (n % 12 === 0) b.textContent = "C" + (3 + n / 12);
-      b.addEventListener("pointerdown", function (e) { e.preventDefault(); b.classList.add("down"); midi(0x90, 48 + n, 100); });
+      b.addEventListener("pointerdown", function (e) { e.preventDefault(); b.classList.add("down"); midi(0x90, 48 + 12 * oct + n, 100); });
       ["pointerup", "pointercancel", "pointerleave"].forEach(function (x) { b.addEventListener(x, function () { b.classList.remove("down"); }); });
       kk.appendChild(b);
     })(i);
@@ -495,7 +548,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--led); outli
     document.addEventListener("keydown", function (e) {
       if (e.repeat || e.target.tagName === "INPUT" || e.metaKey || e.ctrlKey) return;
       var j = CK.indexOf(e.key.toLowerCase());
-      if (j >= 0) { midi(0x90, 60 + j, 100); e.preventDefault(); }
+      if (j >= 0) { midi(0x90, 60 + 12 * oct + j, 100); e.preventDefault(); }
     });
     /* a real SMK-37 (or any controller) on the computer: every message to the core */
     $("webmidi").addEventListener("click", function () {

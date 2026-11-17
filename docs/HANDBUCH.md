@@ -326,8 +326,8 @@ Editor) genauso ein. Oder der FM-1 lernt die Belegung, die das SMK-37 gerade sen
 
 1. **GLO** dreimal drücken: Seite **SMK-37**.
 2. **SEL**: Das Display führt durch das Lernen. Eine Taste spielen (das C, das die Grundnote sein soll), Pad 1
-   schlagen, dann K1 bis K16 nacheinander drehen und F1 bis F8 bewegen (für K9 bis K16 und F5 bis F8 vorher die
-   BANK-Taste am SMK-37 drücken).
+   schlagen, PAD BANK einschalten und Pad 17 schlagen, dann K1 bis K16 nacheinander drehen, F1 bis F8 bewegen und
+   zuletzt ◀ und ▶ drücken (für K9 bis K16 vorher KNOB BANK, für F5 bis F8 FADER BANK drücken).
 3. **SEL** überspringt einen Regler, **SAVE** beendet das Lernen (der Rest bleibt frei), **HOME** bricht ab.
 
 Endlos-Knobs, die Schritte senden statt Positionen, erkennt der FM-1 beim Lernen selbst. **ARP** auf der Seite SMK-37
@@ -336,7 +336,7 @@ Tasten, Pads und Reglern von Hand ein.
 
 <!-- GEN:smk -->
 <!-- (written by tools/manual.py from the code: do not edit by hand) -->
-CC: Kanal 1
+CC: Kanal 1 · Tasten unter dem Display: KNOB BANK, FADER BANK, ◀, ▶, OCTAVE−, OCTAVE+
 
 | Bedienelement | MIDI (Werk) | Funktion auf dem FM-1 |
 |---|---|---|
@@ -383,10 +383,31 @@ CC: Kanal 1
 | **Pad 14** | Note 49, Kanal 10 | MUTE OUTO |
 | **Pad 15** | Note 50, Kanal 10 | NEW GROOVE |
 | **Pad 16** | Note 51, Kanal 10 | UNDO |
+| **PAD BANK** (KNOB BANK + FADER BANK) | Note 52–67, Kanal 10 | Pad 17–32: schalten die Steps der gewählten Spur an und aus (kräftig: mit Akzent) |
+| **◀ ▶** | CC 102, 103 | Pattern zurück / vor (beim Spielen zum nächsten Takt) |
+| **KNOB BANK** | – | Knobs 9–16 |
+| **FADER BANK** | – | Fader 5–8 |
+| **OCTAVE− / OCTAVE+** | – | verschieben die Tasten um Oktaven; das macht das SMK-37 selbst, der FM-1 hört nur andere Noten |
 <!-- /GEN:smk -->
 
 K1 bis K4 schreiben Parameter-Locks, solange am FM-1 eine weiße Taste gehalten wird. Die Pads 1 bis 6 klingen sofort
 mit Anschlag; mit **REC** und laufendem Groove werden sie, wie die Tasten, in den Step geschrieben, auf den sie fallen.
+
+### Die sechs Tasten unter dem Display
+
+- **KNOB BANK** schaltet die Knobs auf K9 bis K16 (LFO und Kanal), **FADER BANK** die Fader auf F5 bis F8.
+- **PAD BANK:** KNOB BANK und FADER BANK zusammen drücken. Die Pads werden zu Pad 17 bis 32, und die sind am FM-1 die
+  **16 Steps der gewählten Spur**: ein Schlag schaltet einen Step an oder aus, ein kräftiger Schlag setzt ihn mit
+  Akzent. Liegt der Step hinter dem Ende des Loops, wird der Loop bis dorthin verlängert. So programmiert man vom
+  SMK-37 aus wie an einer Drum-Machine: mit den Pads 1 bis 6 (PAD BANK aus) die Spur wählen, mit PAD BANK die Steps
+  setzen.
+- **◀ und ▶** wechseln das Pattern (A bis D), beim Spielen zum nächsten Takt. In MIDI SUITE auf CC 102 und 103
+  stellen, oder lernen lassen.
+- **OCTAVE− und OCTAVE+** verschieben die Tasten um Oktaven. Das erledigt das SMK-37 selbst; der FM-1 bekommt einfach
+  höhere oder tiefere Noten, auf der gewählten Spur und beim Aufnehmen mit REC.
+
+Im Emulator hat das virtuelle SMK-37 dieselben sechs Tasten unter einem kleinen Display, das die Bänke und die Oktave
+zeigt. Mit der Maus schaltet Shift-Klick auf eine BANK-Taste die PAD BANK.
 
 ### Was das SMK-37 übernimmt
 
@@ -484,10 +505,11 @@ steht unter MIT. Nicht mit M-VAVE verbunden.
 
 <!-- GEN:version -->
 <!-- (written by tools/manual.py from the code: do not edit by hand) -->
-Aktuelle Version: **0.2**
+Aktuelle Version: **0.3**
 
 | Version | Datum | Änderungen |
 |---|---|---|
 | **0.1** | 2026-11-17 | Erste Version: sechs Stimmen, Sequencer mit Slides und SEKO, 8-Bit-Crusher, Browser-Emulator, Handbuch in drei Sprachen |
 | **0.2** | 2026-11-17 | Generator mit Akkorden und Motiven, neuer Mixer (Kanalzüge, TONE, Master), LFO pro Spur, BODY/SPREAD/CUT, MAXI-Modus mit dem SMK-37 (Belegung, Lernen, Pads, Fader), virtuelles SMK-37 und Web MIDI im Emulator, kleinerer Code |
+| **0.3** | 2026-11-17 | SMK-37: die sechs Tasten unter dem Display; PAD BANK macht die Pads 17–32 zu den Steps der Spur, ◀ ▶ wechseln das Pattern, OCTAVE im Emulator; Lernen dafür erweitert; Projektformat Version 3 |
 <!-- /GEN:version -->
