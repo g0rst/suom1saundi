@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>suom1saundi – SMK-37 Emulator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap">
+<style>
+/* suom1saundi directly on the M-VAVE SMK-37: the keyboard's own panel (a dark body, white keys), the same core as
+   the firmware. Wide: screen, knobs, pads and faders in one row over the buttons, wheels and keys; narrow: stacked,
+   the screen first. */
+:root {
+  --body: #1f2124; --body-edge: #34373b; --ink: #e8e6e0; --ink-soft: #9aa0a3; --cap: #33363a; --led: #ff28c8;
+  --red: #ff4a3a; --font: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: #e9ebeb; color: #1d2022; font-family: var(--font); font-size: 16px; line-height: 1.4; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px 24px; }
+h1 { margin: 0; font-size: 28px; font-weight: 700; line-height: 1.1; }
+h1 span { color: var(--led); }
+header p { margin: 0; color: #565c60; max-width: 62ch; }
+a { color: #b0128a; }
+.sound { border: 0; border-radius: 8px; padding: 10px 16px; background: #1d2022; color: #fff; font: 600 16px/1 var(--font); cursor: pointer; }
+.sound.live { background: var(--led); color: #1d0716; }
+#err { display: none; background: #fff; border-left: 4px solid var(--led); padding: 10px 12px; margin: 0; }
+
+.unit { background: var(--body); color: var(--ink); border-radius: 14px; padding: 14px; display: grid; gap: 14px;
+  grid-template-columns: minmax(0, 1fr); box-shadow: 0 10px 24px -14px rgba(0,0,0,.6); user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none; }
+.top { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+.bezel { background: #000; border-radius: 8px; padding: 6px; max-width: 320px; width: 100%; margin: 0 auto; }
+canvas { display: block; width: 100%; aspect-ratio: 1; image-rendering: pixelated; background: #000; }
+.lbl { font: 600 11px var(--font); letter-spacing: .06em; color: var(--ink-soft); text-align: center; }
+
+.knobs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 6px; align-content: start; }
+.sk { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.dial { width: 44px; height: 44px; border-radius: 50%; background: #0e0f10; position: relative; border: 0; padding: 0;
+  touch-action: none; cursor: ns-resize; box-shadow: 0 0 0 3px #3a3d42; }
+.dial i { position: absolute; left: 50%; top: 4px; width: 3px; height: 11px; margin-left: -1.5px; background: var(--ink); border-radius: 2px; }
+.pm { display: flex; gap: 3px; }
+.pm button { width: 22px; height: 20px; border: 0; border-radius: 4px; background: #3a3d42; color: var(--ink); font: 700 14px/1 var(--font); cursor: pointer; padding: 0; }
+
+.pads { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; align-content: start; }
+.pad { aspect-ratio: 1; border: 0; border-radius: 6px; background: #2a2c30; color: rgba(255,255,255,.55); font: 700 10px var(--font);
+  touch-action: none; cursor: pointer; box-shadow: inset 0 -3px 0 rgba(0,0,0,.4); padding: 0; position: relative; }
+.pad::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 38%; border-radius: 6px 6px 0 0;
+  border-bottom: 1px dashed rgba(255,255,255,.12); }
+.pad.down { outline: 2px solid #fff; }
+
+.faders { display: flex; gap: 6px; justify-content: center; align-items: flex-end; }
+.fd { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.fd input { writing-mode: vertical-lr; direction: rtl; height: 120px; width: 26px; accent-color: var(--led); }
+
+.btns { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.btn { border: 0; border-radius: 6px; background: var(--cap); color: var(--ink); padding: 6px 2px 5px; font: 600 12px/1.1 var(--font);
+  touch-action: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0;
+  box-shadow: 0 2px 0 #0b0c0d; }
+.btn small { font-size: 10px; font-weight: 500; color: var(--ink-soft); }
+.btn::before { content: ""; width: 14px; height: 4px; border-radius: 2px; background: #4a4e52; }
+.btn.dim::before { background: #6e2a5c; }
+.btn.on::before { background: var(--led); box-shadow: 0 0 6px var(--led); }
+.btn.red::before { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.btn.down { transform: translateY(2px); box-shadow: none; }
+
+.play { display: flex; gap: 10px; align-items: stretch; min-width: 0; }
+.wheels { display: flex; gap: 6px; }
+.wheel { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.wheel input { writing-mode: vertical-lr; direction: rtl; height: 110px; width: 30px; accent-color: #9aa0a3; }
+.kscroll { flex: 1; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.keys { position: relative; height: 120px; display: flex; gap: 2px; min-width: 100%; }
+.key { flex: 1; border: 0; border-radius: 0 0 5px 5px; background: #f3f4f2; color: #777; font: 600 10px var(--font); padding: 0 0 4px;
+  touch-action: none; cursor: pointer; display: flex; align-items: flex-end; justify-content: center; min-width: 0; }
+.key.bk { position: absolute; top: 0; height: 62%; background: #111; color: #888; z-index: 1; }
+.key.down { background: var(--led); }
+.key.fm1 { box-shadow: inset 0 3px 0 #b9bcbe; }
+.keys.steps .key.fm1 { box-shadow: inset 0 4px 0 var(--led); }
+
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+label { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; color: #565c60; }
+input[type=checkbox] { width: 18px; height: 18px; }
+.help { display: grid; gap: 4px 28px; grid-template-columns: 1fr; }
+.help h2 { grid-column: 1 / -1; margin: 0; font-size: 18px; }
+.help ul { margin: 0; padding-left: 18px; }
+.help li { margin: 4px 0; max-width: 62ch; }
+.note { color: #565c60; margin: 0; max-width: 72ch; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--led); outline-offset: 2px; }
+
+@media (min-width: 900px) {
+  .top { grid-template-columns: 250px 230px 1fr 170px; align-items: start; }
+  .bezel { max-width: none; }
+  .btns { grid-template-columns: repeat(9, 1fr); }
+  .help { grid-template-columns: 1fr 1fr; }
+  .keys { height: 140px; }
+}
+@media (max-width: 700px) { .keys { min-width: 700px; height: 110px; } }   /* a phone: the keyboard scrolls sideways */
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>suom<span>1</span>saundi · SMK-37</h1>
+      <p>Emulator von suom1saundi direkt auf dem M-VAVE SMK-37: derselbe C-Kern wie in der Firmware, als WebAssembly, mit der
+        Bedienung des Keyboards. Zum FM-1: <a href="emulator.html">FM-1-Emulator</a>. Handbuch: <a href="handbuch.html">Deutsch</a> ·
+        <a href="manual.html">English</a></p>
+    </div>
+    <button class="sound" id="sound" type="button">Ton einschalten</button>
+  </header>
+  <p id="err"></p>
+
+  <div class="unit">
+    <div class="top">
+      <div class="bezel"><canvas id="lcd" width="240" height="240" aria-label="Display, 240 mal 240 Pixel"></canvas></div>
+      <div><div class="knobs" id="knobs"></div></div>
+      <div><div class="pads" id="pads"></div><div class="lbl" style="margin-top:6px">PADS · oberer Teil: hart (Akzent)</div></div>
+      <div class="faders" id="faders"></div>
+    </div>
+    <div class="btns" id="btns"></div>
+    <div class="play">
+      <div class="wheels">
+        <div class="wheel"><input id="pitch" type="range" min="-8192" max="8191" value="0" aria-label="Pitch-Rad"><div class="lbl">PITCH</div></div>
+        <div class="wheel"><input id="mod" type="range" min="0" max="127" value="0" aria-label="Mod-Rad"><div class="lbl">MOD</div></div>
+      </div>
+      <div class="kscroll" id="kscroll"><div class="keys" id="keys"></div></div>
+    </div>
+  </div>
+  <div class="bar">
+    <label for="latch"><input id="latch" type="checkbox"> Pads einrasten (für die Maus: Pad antippen, dann K1–K8 drehen, Pad nochmal antippen)</label>
+    <label for="hard"><input id="hard" type="checkbox"> Tasten hart (Akzent beim Aufnehmen)</label>
+  </div>
+
+  <section class="help">
+    <h2>Kurzanleitung</h2>
+    <ul>
+      <li><b>SEQ PLAY</b> startet den Groove (oder Leertaste). Die <b>Pads</b> sind die 16 Steps der gewählten Spur: antippen setzt oder löscht, im oberen Teil angeschlagen ist es ein Akzent.</li>
+      <li><b>Tasten:</b> normal ein Klavier über die gewählte Spur (C4 ist ihre Grundnote; OCTAVE−/+ verschieben). Am Computer: A W S E D F T G Y H U J K ab C4. Auf dem Handy lässt sich die Tastatur seitlich schieben.</li>
+      <li><b>SEQ REC</b> kurz: wechselt zu STEPS – dann sind F3 bis G5 wie die Tasten des FM-1 (weiß = Steps, schwarz = Spuren, CLR, ◀ ▶, NEW, UNDO), C3 bis D#3 die Patterns A bis D, E3 CHAIN. Nochmal kurz: zurück zum Klavier.</li>
+      <li><b>SEQ REC</b> halten, während der Groove läuft: was man spielt, wird aufgenommen (SEQ PLAY leuchtet rot).</li>
+    </ul>
+    <ul>
+      <li><b>K1–K8</b> mit <b>KNOB BANK</b>: SOUND (die acht Klangregler), LFO+CHAN, FM-1 (K1 MASTER, K2 SELECT = Spur, K3 ALGORITHM = Länge, K4 PRESETS = Pattern, K5–K8 wie KNOB 1–4 der Seite).</li>
+      <li><b>Pad halten</b> und K1–K4 drehen: Note, Chance, Akzent/Slide, Ratchet des Steps; K5–K8 eigene Klangwerte des Steps.</li>
+      <li><b>Fader</b> mit <b>FADER BANK</b>: A = Pegel POTKU, BASSO, HATTU, HAPPO; B = PIIP, OUTO, Delay, Hall. <b>Pitch</b> biegt die Spur, <b>Mod</b> ist SEKO. <b>&lt; &gt;</b> drehen die Steps.</li>
+      <li><b>PATCH</b> Groove-Seite, <b>PARA</b> Klang, <b>CHORD</b> Mixer, <b>FX</b> Effekte, <b>GLOBE</b> Global, <b>SEQ</b> Euklid, <b>SCALE</b> Spur neu, <b>ARP</b> verändern, <b>NOTE REPEAT</b> stumm (halten: Solo), <b>BT</b> speichern.</li>
+    </ul>
+  </section>
+  <p class="note">Stand: Die SMK-37-Firmware baut, ist aber noch an keinem Gerät getestet. Klang, Anschlag und Timing des echten Keyboards können abweichen.</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var WASM = "@@WASM@@";
+  /* the SMK-37's buttons, by printed name: [label, sub, FM-1 button bit (-1: the SMK's own), SMK id] */
+  var BTN = [["PATCH", "Groove", 6], ["PARA", "Klang", 4], ["CHORD", "Mixer", 2], ["FX", "Effekte", 0], ["GLOBE", "Global", 5],
+             ["SEQ", "Euklid", 9], ["SCALE", "Spur neu", 1], ["ARP", "Mutate", 8], ["NOTE REPEAT", "Mute", 3],
+             ["BT", "Sichern", 7], ["OCTAVE−", "", 12], ["OCTAVE+", "", 13], ["&lt;", "Steps", -1, 2], ["&gt;", "Steps", -1, 3],
+             ["KNOB BANK", "Regler", -1, 0], ["FADER BANK", "Fader", -1, 1], ["SEQ PLAY", "Start", 10], ["SEQ REC", "Modus", 11]];
+  var Q_SMK_PIANO = 16, Q_SMK_REC = 17;
+  var $ = function (id) { return document.getElementById(id); };
+  var w = null, ctx = null, vol = 75, held = 0, latchB = 0, keysFm1 = 0, enc = [0, 0, 0, 0, 0, 0, 0];
+  var btnEl = [], padEl = [], padDown = [], keyEl = [];
+
+  function fail(m) { var e = $("err"); e.textContent = m; e.style.display = "block"; }
+  /* the first touch of any control starts the sound (a browser wants a gesture for it); the button pauses it */
+  function kick() { if (!ctx) startAudio(); else if (ctx.state !== "running" && !paused) ctx.resume(); }
+  var paused = false;
+
+  /* ---- buttons ---- */
+  BTN.forEach(function (d, i) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "btn"; b.innerHTML = d[0] + "<small>" + d[1] + "</small>";
+    b.addEventListener("pointerdown", function (e) {
+      e.preventDefault(); b.classList.add("down"); kick();
+      if (d[2] >= 0) { held |= 1 << d[2]; latchB |= 1 << d[2]; } else if (w) w.sim_smk_button(d[3]);
+      try { b.setPointerCapture(e.pointerId); } catch (x) {}
+    });
+    ["pointerup", "pointercancel", "lostpointercapture"].forEach(function (n) {
+      b.addEventListener(n, function () { b.classList.remove("down"); if (d[2] >= 0) held &= ~(1 << d[2]); });
+    });
+    $("btns").appendChild(b); btnEl[i] = b;
+  });
+
+  /* ---- K1..K8: endless encoders ---- */
+  var turned = [0, 0, 0, 0, 0, 0, 0, 0];
+  for (var k = 0; k < 8; k++) (function (j) {
+    var box = document.createElement("div"); box.className = "sk";
+    var nm = document.createElement("div"); nm.className = "lbl"; nm.textContent = "K" + (j + 1);
+    var dial = document.createElement("button"); dial.type = "button"; dial.className = "dial"; dial.innerHTML = "<i></i>";
+    dial.setAttribute("aria-label", "K" + (j + 1) + " drehen");
+    var y0 = null, acc = 0;
+    dial.addEventListener("pointerdown", function (e) { e.preventDefault(); y0 = e.clientY; acc = 0; kick(); try { dial.setPointerCapture(e.pointerId); } catch (x) {} });
+    dial.addEventListener("pointermove", function (e) {
+      if (y0 === null) return;
+      acc += y0 - e.clientY; y0 = e.clientY;
+      while (acc >= 8) { acc -= 8; turn(j, 1); }
+      while (acc <= -8) { acc += 8; turn(j, -1); }
+    });
+    ["pointerup", "pointercancel"].forEach(function (n) { dial.addEventListener(n, function () { y0 = null; }); });
+    dial.addEventListener("wheel", function (e) { e.preventDefault(); turn(j, e.deltaY < 0 ? 1 : -1); }, { passive: false });
+    var pm = document.createElement("div"); pm.className = "pm";
+    [-1, 1].forEach(function (dv) {
+      var b = document.createElement("button"); b.type = "button"; b.textContent = dv < 0 ? "−" : "+";
+      b.setAttribute("aria-label", "K" + (j + 1) + (dv < 0 ? " zurück" : " vor"));
+      b.addEventListener("click", function () { turn(j, dv); kick(); });
+      pm.appendChild(b);
+    });
+    box.appendChild(nm); box.appendChild(dial); box.appendChild(pm); $("knobs").appendChild(box);
+    turned[j] = { dial: dial, n: 0 };
+  })(k);
+  function turn(j, d) {
+    turned[j].n += d; turned[j].dial.style.transform = "rotate(" + turned[j].n * 15 + "deg)";
+    if (!w) return;
+    if (w.sim_smk_knob_bank() !== 2) { w.sim_smk_knob(j, d); return; }
+    if (j === 0) { vol = Math.max(0, Math.min(100, vol + d * 3)); return; }   /* the FM-1 bank: K1 MASTER */
+    enc[j - 1] += d;                    /* K2 SELECT, K3 ALGORITHM, K4 PRESETS, K5..K8 KNOB 1..4 (the core's order) */
+  }
+  /* the core's encoder order: SELECT, ALGORITHM, PRESETS, K1..K4; K2 SELECT, K3 ALGORITHM, K4 PRESETS */
+
+  /* ---- pads: 0..7 the top row ---- */
+  for (var p = 0; p < 16; p++) (function (i) {
+    var b = document.createElement("button"); b.type = "button"; b.className = "pad"; b.textContent = i + 1;
+    b.setAttribute("aria-label", "Pad " + (i + 1) + ", Step " + (i + 1));
+    b.addEventListener("pointerdown", function (e) {
+      e.preventDefault(); kick();
+      var r = b.getBoundingClientRect(), vel = e.clientY - r.top < r.height * 0.38 ? 127 : 90;
+      if ($("latch").checked && padDown[i]) { padDown[i] = 0; b.classList.remove("down"); if (w) w.sim_smk_pad(i, 0); return; }
+      padDown[i] = 1; b.classList.add("down"); if (w) w.sim_smk_pad(i, vel);
+      try { b.setPointerCapture(e.pointerId); } catch (x) {}
+    });
+    ["pointerup", "pointercancel"].forEach(function (n) {
+      b.addEventListener(n, function () {
+        if ($("latch").checked || !padDown[i]) return;
+        padDown[i] = 0; b.classList.remove("down"); if (w) w.sim_smk_pad(i, 0);
+      });
+    });
+    $("pads").appendChild(b); padEl[i] = b;
+  })(p);
+  $("latch").addEventListener("change", function () {
+    if (this.checked) return;
+    padDown.forEach(function (v, i) { if (v) { padDown[i] = 0; padEl[i].classList.remove("down"); if (w) w.sim_smk_pad(i, 0); } });
+  });
+
+  /* ---- faders ---- */
+  for (var f = 0; f < 4; f++) (function (j) {
+    var d = document.createElement("div"); d.className = "fd";
+    var r = document.createElement("input"); r.type = "range"; r.min = 0; r.max = 127; r.value = 100;
+    r.setAttribute("aria-label", "Fader " + (j + 1));
+    r.addEventListener("input", function () { kick(); if (w) w.sim_smk_fader(j, +r.value); });
+    var nm = document.createElement("div"); nm.className = "lbl"; nm.textContent = "F" + (j + 1);
+    d.appendChild(r); d.appendChild(nm); $("faders").appendChild(d);
+  })(f);
+
+  /* ---- wheels: pitch springs back ---- */
+  var pitch = $("pitch");
+  pitch.addEventListener("input", function () { if (w) w.sim_smk_bend(+pitch.value); });
+  ["change", "pointerup", "touchend"].forEach(function (n) {
+    pitch.addEventListener(n, function () { pitch.value = 0; if (w) w.sim_smk_bend(0); });
+  });
+  $("mod").addEventListener("input", function () { kick(); if (w) w.sim_smk_mod(+this.value); });
+
+  /* ---- 37 keys, C3..C6 ---- */
+  var BLK = [1, 3, 6, 8, 10], whites = [], nW = 0, n;
+  for (n = 0; n < 37; n++) if (BLK.indexOf(n % 12) < 0) nW++;
+  for (n = 0; n < 37; n++) (function (key) {
+    var b = document.createElement("button"); b.type = "button";
+    var black = BLK.indexOf(key % 12) >= 0;
+    b.className = "key" + (black ? " bk" : "") + (key >= 5 && key <= 31 ? " fm1" : "");
+    if (!black && key % 12 === 0) b.textContent = "C" + (3 + key / 12);
+    b.setAttribute("aria-label", "Taste " + key);
+    if (black) {
+      var left = whites.length;             /* between the white key before and the next */
+      b.style.left = "calc(" + (left / nW * 100) + "% - " + (100 / nW * 0.32) + "%)";
+      b.style.width = (100 / nW * 0.64) + "%";
+    } else whites.push(b);
+    function down(e) {
+      if (e) e.preventDefault();
+      if (b.classList.contains("down")) return;
+      b.classList.add("down"); kick();
+      if (w) w.sim_smk_key(key, $("hard").checked ? 120 : 92);
+      if (key >= 5 && key <= 31) keysFm1 |= 1 << (key - 5);
+      if (e) try { b.setPointerCapture(e.pointerId); } catch (x) {}
+    }
+    function up() {
+      if (!b.classList.contains("down")) return;
+      b.classList.remove("down");
+      if (w) w.sim_smk_key(key, 0);
+      if (key >= 5 && key <= 31) keysFm1 &= ~(1 << (key - 5));
+    }
+    b.addEventListener("pointerdown", down);
+    ["pointerup", "pointercancel", "lostpointercapture"].forEach(function (x) { b.addEventListener(x, up); });
+    $("keys").appendChild(b); keyEl[key] = { down: down, up: up };
+  })(n);
+  var CK = "awsedftgyhujk";
+  document.addEventListener("keydown", function (e) {
+    if (e.repeat || e.target.tagName === "INPUT" || e.metaKey || e.ctrlKey) return;
+    if (e.code === "Space") { latchB |= 1 << 10; kick(); e.preventDefault(); return; }
+    var j = CK.indexOf(e.key.toLowerCase());
+    if (j >= 0) { keyEl[12 + j].down(); e.preventDefault(); }
+  });
+  document.addEventListener("keyup", function (e) {
+    var j = CK.indexOf(e.key.toLowerCase());
+    if (j >= 0) keyEl[12 + j].up();
+  });
+
+  /* ---- sound ---- */
+  function gain() { var v = vol / 100; return Math.round(v * v * 4096); }
+  $("sound").addEventListener("click", function () {
+    if (!w) return;
+    if (ctx) { paused = ctx.state === "running"; if (paused) ctx.suspend(); else ctx.resume(); return; }
+    startAudio();
+  });
+  function startAudio() {
+    if (!w || ctx) return;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) { fail("Dieser Browser hat kein Web Audio."); return; }
+    try { ctx = new AC({ sampleRate: 44100, latencyHint: "interactive" }); } catch (e) { ctx = new AC(); }
+    var node = ctx.createScriptProcessor(1024, 0, 2), ratio = 44100 / ctx.sampleRate;
+    var out = null, at = 128, ph = 1, pl = 0, pr = 0, cl = 0, cr = 0;
+    function next() {
+      if (at >= 128) { w.sim_audio(gain()); out = new Float32Array(w.memory.buffer, w.sim_out(), 256); at = 0; }
+      pl = cl; pr = cr; cl = out[2 * at]; cr = out[2 * at + 1]; at++;
+    }
+    node.onaudioprocess = function (e) {
+      var L = e.outputBuffer.getChannelData(0), R = e.outputBuffer.getChannelData(1), i;
+      for (i = 0; i < L.length; i++) { ph += ratio; while (ph >= 1) { next(); ph -= 1; } L[i] = pl + (cl - pl) * ph; R[i] = pr + (cr - pr) * ph; }
+    };
+    node.connect(ctx.destination);
+    ctx.onstatechange = label; ctx.resume(); label();
+  }
+  function label() { var on = ctx && ctx.state === "running", b = $("sound"); b.textContent = on ? "Ton ist an" : "Ton einschalten"; b.classList.toggle("live", !!on); }
+
+  /* ---- a frame: the panel in, the screen, the pads and the LEDs out ---- */
+  var lcd = $("lcd").getContext("2d"), img = lcd.createImageData(240, 240), seenRgb = [];
+  function frame(t) {
+    var piano = w.sim_state(Q_SMK_PIANO), dirty, i;
+    dirty = w.sim_frame((held | latchB) >>> 0, piano ? 0 : keysFm1 >>> 0, enc[0], enc[1], enc[2], enc[3], enc[4], enc[5], enc[6], t >>> 0);
+    latchB = 0; enc = [0, 0, 0, 0, 0, 0, 0];
+    if (dirty) {
+      var fb = new Uint16Array(w.memory.buffer, w.sim_fb(), 57600), d = img.data, px;
+      for (i = 0; i < 57600; i++) {
+        px = fb[i];
+        d[4 * i] = (px >> 11) * 255 / 31; d[4 * i + 1] = (px >> 5 & 63) * 255 / 63; d[4 * i + 2] = (px & 31) * 255 / 31; d[4 * i + 3] = 255;
+      }
+      lcd.putImageData(img, 0, 0);
+    }
+    for (i = 0; i < 16; i++) {          /* the LEDs are dim on purpose; on a screen they are shown brighter */
+      var c = w.sim_smk_pad_rgb(i) >>> 0;
+      if (c !== seenRgb[i]) {
+        seenRgb[i] = c;
+        var r = Math.min(255, (c >> 16 & 255) * 3 + 34), g = Math.min(255, (c >> 8 & 255) * 3 + 36), b = Math.min(255, (c & 255) * 3 + 40);
+        padEl[i].style.background = "rgb(" + r + "," + g + "," + b + ")";
+      }
+    }
+    var li = new Uint32Array(w.memory.buffer, w.sim_lights(), 4), ex = w.sim_smk_leds(), rec = w.sim_state(Q_SMK_REC);
+    BTN.forEach(function (d, j) {
+      var on = d[2] >= 0 ? (li[0] >>> d[2] & 1) === 1 : (ex >>> d[3] & 1) === 1;
+      var red = d[2] === 10 && rec;
+      btnEl[j].classList.toggle("on", on && !red);
+      btnEl[j].classList.toggle("red", !!red);
+    });
+    $("keys").classList.toggle("steps", !piano);
+    var n2 = w.sim_save();
+    if (n2) {
+      try {
+        var bb = new Uint8Array(w.memory.buffer, w.sim_prj(), n2), s = "";
+        for (i = 0; i < n2; i++) s += String.fromCharCode(bb[i]);
+        localStorage.setItem("suom1saundi-smk37-project", btoa(s));
+      } catch (e) {}
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ---- start ---- */
+  var bin;
+  try { var raw = atob(WASM); bin = new Uint8Array(raw.length); for (var q = 0; q < raw.length; q++) bin[q] = raw.charCodeAt(q); }
+  catch (e) { fail("Die Seite ist unvollständig gebaut (kein WebAssembly). sim/build.sh erzeugt sie."); return; }
+  WebAssembly.instantiate(bin, {}).then(function (r) {
+    w = r.instance.exports;
+    w.sim_init((Date.now() & 0x7fffffff) | 1);
+    try {
+      var s = localStorage.getItem("suom1saundi-smk37-project");
+      if (s) { var raw2 = atob(s), b = new Uint8Array(w.memory.buffer, w.sim_prj(), raw2.length); for (var j = 0; j < raw2.length; j++) b[j] = raw2.charCodeAt(j); w.sim_load(raw2.length); }
+    } catch (e) {}
+    w.sim_smk_native(1);
+    requestAnimationFrame(frame);
+    var ks = $("kscroll");                  /* (a phone: the keyboard scrolled to C4) */
+    if (ks.scrollWidth > ks.clientWidth) ks.scrollLeft = (ks.scrollWidth - ks.clientWidth) * 0.4;
+  }).catch(function (e) { fail("WebAssembly ließ sich hier nicht starten (" + e.message + ")."); });
+})();
+</script>
+</body>
+</html>

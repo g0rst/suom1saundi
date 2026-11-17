@@ -11,6 +11,8 @@ Firmware läuft suom1saundi **direkt auf dem SMK-37** (Zweig `smk37`, noch unget
 
 - **Im Browser spielen:** [Emulator](https://g0rst.github.io/suom1saundi/emulator.html) (oder `docs/emulator.html`
   direkt öffnen). Derselbe C-Kern wie in der Firmware, als WebAssembly.
+  Für die SMK-37-Version: [SMK-37-Emulator](https://g0rst.github.io/suom1saundi/emulator-smk37.html)
+  (`docs/emulator-smk37.html`) mit 37 Tasten, 16 Pads, 8 Reglern, 4 Fadern und den Rädern.
 - **Handbuch:** [Deutsch](https://g0rst.github.io/suom1saundi/handbuch.html) ·
   [English](https://g0rst.github.io/suom1saundi/manual.html) ·
   [tlhIngan Hol](https://g0rst.github.io/suom1saundi/tlhingan.html)

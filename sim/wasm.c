@@ -74,3 +74,16 @@ void EXPORT(sim_midi)(uint32_t st, uint32_t d1, uint32_t d2)
     else if (st == 0xFCu)
         ss_midi_transport(0);
 }
+
+/* the SMK-37 as itself (docs/emulator-smk37.html): its own controls straight into the core (ss_smk_*) */
+void EXPORT(sim_smk_native)(int on) { ss_smk_native(on); }
+void EXPORT(sim_smk_key)(int key, int vel) { ss_smk_key(key, vel); }
+void EXPORT(sim_smk_pad)(int pad, int vel) { ss_smk_pad(pad, vel); }
+void EXPORT(sim_smk_knob)(int knob, int d) { ss_smk_knob(knob, d); }
+void EXPORT(sim_smk_fader)(int f, int v) { ss_smk_fader(f, v); }
+void EXPORT(sim_smk_bend)(int v) { ss_smk_bend(v); }
+void EXPORT(sim_smk_mod)(int v) { ss_smk_mod(v); }
+void EXPORT(sim_smk_button)(int b) { ss_smk_button(b); }
+int EXPORT(sim_smk_knob_bank)(void) { return ss_smk_knob_bank(); }
+uint32_t EXPORT(sim_smk_pad_rgb)(int pad) { return ss_smk_pad_rgb(pad); }
+uint32_t EXPORT(sim_smk_leds)(void) { return ss_smk_leds(); }
