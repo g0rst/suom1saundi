@@ -617,7 +617,7 @@ int main(int argc, char **argv)
     CHECK(ss_project()->seko == 99, "mod wheel: SEKO %d", ss_project()->seko);
     /* PAD BANK: pad 17 + 2 toggles PIIP's step 3; ▶ (CC 103) the next pattern, ◀ (CC 102) back */
     {
-        int was = ss_project()->pat[0].tr[SS_PIIP].step[2].flags & SS_ST_ON;
+        unsigned was = ss_project()->pat[0].tr[SS_PIIP].step[2].flags & SS_ST_ON;
         ss_midi_note(9, 52 + 2, 90); frame(0);
         CHECK((ss_project()->pat[0].tr[SS_PIIP].step[2].flags & SS_ST_ON) != was, "PAD BANK: step 3 not toggled");
         ss_midi_cc(0, 103, 127); ss_midi_cc(0, 103, 0); frame(0);
